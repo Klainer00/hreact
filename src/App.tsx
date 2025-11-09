@@ -11,6 +11,7 @@ import Nosotros from './pages/Nosotros';
 import Blog from './pages/Blog';
 import Contacto from './pages/Contacto';
 import DetalleBlog1 from './pages/DetalleBlog1';
+import Perfil from './pages/Perfil';
 
 // Importar Páginas de Admin
 import AdminLogin from './pages/admin/AdminLogin';
@@ -29,6 +30,7 @@ function App() {
         <Route path="blogs.html" element={<Blog />} />
         <Route path="contacto.html" element={<Contacto />} />
         <Route path="detalle-blog-1.html" element={<DetalleBlog1 />} />
+        <Route path="perfil.html" element={<Perfil />} />
       </Route>
 
       {/* Rutas de Admin (usan la plantilla con Sidebar) */}
