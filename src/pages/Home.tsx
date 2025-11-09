@@ -22,7 +22,7 @@ const Home = () => {
   return (
     <>
       {/* Hero Section */}
-      <header className="hero text-white text-center py-5">
+      <header className="hero text-dark text-center py-5">
         <div className="container py-5">
           <h1 className="display-3">TIENDA ONLINE</h1>
           <p className="lead mb-4">Llevamos la frescura y calidad de los productos del campo directamente a tu puerta.</p>
