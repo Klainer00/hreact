@@ -42,3 +42,31 @@
 .login-admin-card .btn-primary:hover {
   background-color: #0056b3;
 }
+/* --- MEJORAS DE UI Y TRANSICIONES --- */
+
+/* Transición suave para todos los botones */
+.btn {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Transición para los links de la Navbar */
+.navbar .nav-link {
+  transition: all 0.2s ease-in-out;
+  border-bottom: 2px solid transparent;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link.active {
+  color: #198754 !important; /* Verde de Bootstrap */
+  border-bottom-color: #198754;
+}
+
+/* Transición para las tarjetas de productos */
+.card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12) !important;
+}

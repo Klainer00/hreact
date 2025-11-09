@@ -1,3 +1,4 @@
+import Swal from 'sweetalert2'; // <-- 1. Importar SweetAlert
 import type { Producto } from '../interfaces/producto';
 import { useCarrito } from '../context/CarritoProvider';
 
@@ -9,12 +10,22 @@ const ProductoCard = ({ producto }: Props) => {
   const { agregarAlCarrito } = useCarrito();
 
   const handleAgregar = () => {
-    // Aquí puedes agregar lógica de Toast como en main.js
-    // Por ahora solo lo agrega
-    agregarAlCarrito(producto, 1);
+    // 2. Llama a la función del carrito
+    agregarAlCarrito(producto);
+
+    // 3. Muestra la alerta SweetAlert
+    Swal.fire({
+      title: "¡Producto Agregado!",
+      text: `"${producto.nombre}" se ha añadido a tu carrito.`,
+      icon: "success",
+      toast: true, // Lo convierte en una notificación pequeña
+      position: "top-end", // La ubica en la esquina superior derecha
+      showConfirmButton: false,
+      timer: 2000, // Se cierra automáticamente después de 2 segundos
+      timerProgressBar: true
+    });
   };
   
-  // Corregir ruta de imagen (ej: de ../img/manzana.png a /img/manzana.png)
   const rutaImagen = producto.imagen.startsWith('../') ? producto.imagen.substring(3) : producto.imagen;
 
   return (

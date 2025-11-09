@@ -2,18 +2,24 @@ import { useCarrito } from '../../context/CarritoProvider';
 import { useAuth } from '../../context/AuthProvider';
 
 const CarritoModal = () => {
-  const { carrito, eliminarDelCarrito, actualizarCantidad, limpiarCarrito, total } = useCarrito();
+  // 1. Obtener las nuevas funciones del hook
+  const { 
+    carrito, 
+    eliminarDelCarrito, 
+    incrementarCantidad, 
+    disminuirCantidad, 
+    limpiarCarrito, 
+    total 
+  } = useCarrito();
+  
   const { usuario } = useAuth();
 
   const handleFinalizarCompra = () => {
     if (usuario) {
       alert("PAGO EXITOSO. ¡Gracias por su compra!");
       limpiarCarrito();
-      // El modal se cierra con data-bs-dismiss="modal"
     } else {
       alert("Debes iniciar sesión para finalizar la compra.");
-      // Cierra este modal y abre el de login
-      // Esto requiere JS de Bootstrap o un manejo de estado más complejo
     }
   };
 
@@ -46,23 +52,41 @@ const CarritoModal = () => {
                       <tr key={item.id}>
                         <td><img src={item.img} alt={item.nombre} width="50" className="rounded" /></td>
                         <td>{item.nombre}</td>
+                        
+                        {/* 2. Reemplazo del Input por Botones + y - */}
                         <td>
-                          <input 
-                            type="number" 
-                            min="1" 
-                            value={item.cantidad} 
-                            className="form-control form-control-sm w-75 mx-auto" 
-                            onChange={(e) => actualizarCantidad(item.id, parseInt(e.target.value))}
-                          />
+                          <div className="input-group input-group-sm" style={{ width: '120px', margin: 'auto' }}>
+                            <button 
+                              className="btn btn-outline-secondary" 
+                              type="button"
+                              onClick={() => disminuirCantidad(item.id)}
+                            >
+                              -
+                            </button>
+                            <span className="form-control text-center">{item.cantidad}</span>
+                            <button 
+                              className="btn btn-outline-secondary" 
+                              type="button"
+                              onClick={() => incrementarCantidad(item.id)}
+                            >
+                              +
+                            </button>
+                          </div>
                         </td>
+                        
                         <td>${item.precio.toLocaleString('es-CL')}</td>
                         <td>${(item.precio * item.cantidad).toLocaleString('es-CL')}</td>
                         <td>
                           <button 
                             className="btn btn-sm btn-danger" 
+                            title="Eliminar producto"
                             onClick={() => eliminarDelCarrito(item.id)}
                           >
-                            Eliminar
+                            {/* Icono de basura (opcional pero recomendado) */}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
+                              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                              <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                            </svg>
                           </button>
                         </td>
                       </tr>
@@ -82,6 +106,7 @@ const CarritoModal = () => {
               id="btnFinalizarCompra"
               onClick={handleFinalizarCompra}
               disabled={carrito.length === 0}
+              data-bs-dismiss={usuario ? "modal" : ""} // Cierra el modal solo si el pago es exitoso
             >
               Finalizar Compra
             </button>
