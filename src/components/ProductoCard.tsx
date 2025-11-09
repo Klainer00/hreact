@@ -10,31 +10,29 @@ interface Props {
 const ProductoCard = ({ producto }: Props) => {
   const { agregarAlCarrito } = useCarrito();
   
-  // 2. AÑADE UN ESTADO PARA CONTROLAR EL COOLDOWN
-  const [enCooldown, setEnCooldown] = useState(false);
+  // 2. ESTADO PARA CONTROLAR EL COOLDOWN DE LA ALERTA
+  const [alertaEnCooldown, setAlertaEnCooldown] = useState(false);
 
-  // 3. CONVIERTE LA FUNCIÓN EN 'async' para usar 'await'
-  const handleAgregar = async () => {
-    
-    // 4. VERIFICA SI ESTÁ EN COOLDOWN
-    // Si es 'true', no hagas nada.
-    if (enCooldown) {
-      return; 
-    }
-
-    // 5. ACTIVA EL COOLDOWN
-    setEnCooldown(true);
-    
-    // Agrega el producto al carrito
+  const handleAgregar = () => {
+    // 3. LA ACCIÓN DE AGREGAR AL CARRITO SIEMPRE SE EJECUTA
     agregarAlCarrito(producto);
 
-    // 6. MUESTRA LA ALERTA (con 'await' y 5 segundos)
-    await Swal.fire({
+    // 4. SI LA ALERTA ESTÁ EN COOLDOWN, SALIMOS TEMPRANO
+    // (El producto ya se agregó, pero no mostramos la alerta)
+    if (alertaEnCooldown) {
+      return;
+    }
+
+    // 5. SI NO ESTÁ EN COOLDOWN, ACTIVAMOS EL COOLDOWN
+    setAlertaEnCooldown(true);
+
+    // 6. MOSTRAMOS LA ALERTA (con 5 segundos)
+    Swal.fire({
       title: "¡Producto Agregado!",
       text: `"${producto.nombre}" se ha añadido a tu carrito.`,
       icon: "success",
       toast: true,
-      position: "bottom-end",
+      position: "bottom-end", 
       showConfirmButton: false,
       timer: 5000, // <-- 7. CAMBIADO A 5 SEGUNDOS
       timerProgressBar: true,
@@ -43,9 +41,13 @@ const ProductoCard = ({ producto }: Props) => {
         toast.onmouseleave = Swal.resumeTimer;
       }
     });
-
-    // 8. DESACTIVA EL COOLDOWN (después de que la alerta se cierra)
-    setEnCooldown(false);
+    
+    // 8. DESPUÉS DE 5 SEGUNDOS, RESETEAMOS EL COOLDOWN
+    // Esto permite que la próxima vez que el usuario haga clic
+    // (después de 5s) se vuelva a mostrar la alerta.
+    setTimeout(() => {
+      setAlertaEnCooldown(false);
+    }, 5000); // 5 segundos
   };
   
   const rutaImagen = producto.imagen.startsWith('../') ? producto.imagen.substring(3) : producto.imagen;
@@ -61,11 +63,9 @@ const ProductoCard = ({ producto }: Props) => {
             <button 
               className="btn btn-success add-to-cart" 
               onClick={handleAgregar}
-              // 9. DESHABILITA EL BOTÓN si está en cooldown
-              disabled={enCooldown} 
+              // IMPORTANTE: El botón ya NO tiene la propiedad "disabled"
             >
-              {/* 10. (Opcional) Cambia el texto mientras está en cooldown */}
-              {enCooldown ? 'Agregado ✓' : 'Añadir al Carrito'}
+              Añadir al Carrito
             </button>
           ) : (
             <button className="btn btn-secondary" disabled>Sin Stock</button>
