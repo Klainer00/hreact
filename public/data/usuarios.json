@@ -1,0 +1,74 @@
+ {
+  "usuarios": [
+    {
+      "id": 1,
+      "rut": "1-9",
+      "nombre": "Admin",
+      "apellido": "Maestro",
+      "fecha_nacimiento": "2000-01-01",
+      "email": "admin@huerto.cl",
+      "direccion": "Av. Siempre Viva 123",
+      "region": "Metropolitana de Santiago",
+      "comuna": "Santiago",
+      "rol": "Administrador",
+      "estado": "Activo",
+      "password": "admin"
+    },
+    {
+      "id": 2,
+      "rut": "12345678-9",
+      "nombre": "Juan",
+      "apellido": "Pérez",
+      "fecha_nacimiento": "1990-05-15",
+      "email": "juan.perez@example.com",
+      "direccion": "Calle Falsa 123",
+      "region": "Metropolitana de Santiago",
+      "comuna": "Santiago",
+      "rol": "Cliente",
+      "estado": "Activo",
+      "password": "password123"
+    },
+    {
+      "id": 3,
+      "rut": "98765432-1",
+      "nombre": "Maria",
+      "apellido": "Gonzalez",
+      "fecha_nacimiento": "1992-08-20",
+      "email": "maria.gonzalez@example.com",
+      "direccion": "Av. Libertador 789",
+      "region": "Valparaíso",
+      "comuna": "Viña del Mar",
+      "rol": "Cliente",
+      "estado": "Activo",
+      "password": "password456"
+    },
+    {
+      "id": 4,
+      "rut": "11111111-1",
+      "nombre": "Carlos",
+      "apellido": "Soto",
+      "fecha_nacimiento": "1985-03-10",
+      "email": "carlos.soto@example.com",
+      "direccion": "Pasaje Los Pinos 456",
+      "region": "Biobío",
+      "comuna": "Concepción",
+      "rol": "Cliente",
+      "estado": "Inactivo",
+      "password": "password111"
+    },
+    {
+      "id": 5,
+      "rut": "87654321-0",
+      "nombre": "Ana",
+      "apellido": "López",
+      "fecha_nacimiento": "1988-12-01",
+      "email": "ana.lopez@example.com",
+      "direccion": "Av. Providencia 456",
+      "region": "Metropolitana de Santiago",
+      "comuna": "Providencia",
+      "rol": "Vendedor",
+      "estado": "Activo",
+      "password": "password789"
+    }
+  ]
+}
