@@ -16,7 +16,6 @@ import DetalleBlog1 from './pages/DetalleBlog1';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
 import AdminProductos from './pages/admin/AdminProductos';
-import Perfil from './pages/Perfil';
 
 function App() {
   return (
@@ -30,7 +29,6 @@ function App() {
         <Route path="blogs.html" element={<Blog />} />
         <Route path="contacto.html" element={<Contacto />} />
         <Route path="detalle-blog-1.html" element={<DetalleBlog1 />} />
-        <Route path="perfil.html" element={<Perfil />} />
       </Route>
 
       {/* Rutas de Admin (usan la plantilla con Sidebar) */}
