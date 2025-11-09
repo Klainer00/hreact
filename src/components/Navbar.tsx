@@ -27,12 +27,7 @@ const Navbar = () => {
             {usuario ? (
               <>
                 <li className="nav-item">
-                  <span className="nav-link">¡Hola, {usuario.nombre}!</span>
-                </li>
-                <li className="nav-item">
-                  <NavLink className="nav-link" to="/perfil.html">
-                    Mi Perfil
-                  </NavLink>
+                  <NavLink className="nav-link" to="/perfil.html">¡Hola, {usuario.nombre}!</NavLink>
                 </li>
                 <li className="nav-item">
                   <a className="nav-link text-danger" href="#" onClick={logout} style={{ cursor: 'pointer', fontWeight: 'bold' }}>
