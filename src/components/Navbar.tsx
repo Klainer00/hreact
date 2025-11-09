@@ -1,8 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../context/AuthProvider'; // <-- Importa el Hook
+import { useAuth } from '../context/AuthProvider'; 
 
 const Navbar = () => {
-  // Usa el estado global de autenticación
   const { usuario, logout } = useAuth();
 
   return (
@@ -15,14 +14,13 @@ const Navbar = () => {
           <span className="navbar-toggler-icon"></span>
         </button>
         <div className="collapse navbar-collapse" id="navbarNav">
-          <ul className="navbar-nav ms-auto">
+          <ul className="navbar-nav ms-auto" id="navbar-items-container">
             <li className="nav-item"><NavLink className="nav-link" to="/index.html">Inicio</NavLink></li>
             <li className="nav-item"><NavLink className="nav-link" to="/productos.html">Productos</NavLink></li>
             <li className="nav-item"><NavLink className="nav-link" to="/nosotros.html">Nosotros</NavLink></li>
             <li className="nav-item"><NavLink className="nav-link" to="/blogs.html">Blog</NavLink></li>
             <li className="nav-item"><NavLink className="nav-link" to="/contacto.html">Contacto</NavLink></li>
             
-            {/* Lógica migrada de login-auth.js */}
             {usuario ? (
               <>
                 <li className="nav-item">
