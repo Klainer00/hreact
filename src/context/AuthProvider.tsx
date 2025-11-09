@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { createContext, useState, useEffect, useContext } from 'react';
-import type { Usuario } from '../interfaces/usuario'; // <-- Usando tu ruta
-import { loadUsuario, saveUsuario } from '../utils/storage'; // <-- Usando tu ruta
+import type { Usuario } from '../interfaces/usuario'; 
+import { loadUsuario, saveUsuario } from '../utils/storage';
 
 interface AuthContextType {
   usuario: Usuario | null;
