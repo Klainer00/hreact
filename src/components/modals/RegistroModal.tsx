@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthProvider';
-import { regionesComunas } from '../../utils/regions';
-import { checkRut } from '../../utils/validation';
+import { regionesComunas } from '../../utils/regiones';
+import { checkRut } from '../../utils/checkrut';
 import type { Usuario } from '../../interfaces/usuario';
 import { RolUsuario } from '../../interfaces/rolUsuario';
-import { saveUsuario } from '../../utils/storage'; // Para guardar el nuevo usuario
+//import { saveUsuario } from '../../utils/storage'; 
 
 const RegistroModal = () => {
   const { login } = useAuth();
