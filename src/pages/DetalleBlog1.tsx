@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 const DetalleBlog1 = () => {
   return (
-    <main className="container my-5">
+    <div className="container my-5">
       <div className="row">
         <div className="col-lg-8 mx-auto">
           <h1 className="mb-3">Cómo Empezar tu Propio Huerto en Casa</h1>
@@ -23,7 +23,7 @@ const DetalleBlog1 = () => {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 };
 

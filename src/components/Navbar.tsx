@@ -1,8 +1,10 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider'; 
+import { useCarrito } from '../context/CarritoProvider'; // <-- 1. IMPORTAR HOOK DE CARRITO
 
 const Navbar = () => {
   const { usuario, logout } = useAuth();
+  const { totalItems } = useCarrito(); // <-- 2. OBTENER TOTAL DE ÍTEMS
 
   return (
     <nav className="navbar navbar-expand-lg bg-body-tertiary shadow-sm sticky-top">
@@ -15,6 +17,7 @@ const Navbar = () => {
         </button>
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav ms-auto" id="navbar-items-container">
+            {/* ... (links de navegación) ... */}
             <li className="nav-item"><NavLink className="nav-link" to="/index.html">Inicio</NavLink></li>
             <li className="nav-item"><NavLink className="nav-link" to="/productos.html">Productos</NavLink></li>
             <li className="nav-item"><NavLink className="nav-link" to="/nosotros.html">Nosotros</NavLink></li>
@@ -48,8 +51,19 @@ const Navbar = () => {
             )}
           </ul>
           <div className="d-flex ms-2">
-            <button className="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCarrito">
+            {/* 3. BOTÓN DE CARRITO ACTUALIZADO */}
+            <button 
+              className="btn btn-success position-relative" // <-- Añadida clase 'position-relative'
+              data-bs-toggle="modal" 
+              data-bs-target="#modalCarrito"
+            >
               🛒 Carrito
+              {totalItems > 0 && (
+                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  {totalItems}
+                  <span className="visually-hidden">productos en el carrito</span>
+                </span>
+              )}
             </button>
           </div>
         </div>

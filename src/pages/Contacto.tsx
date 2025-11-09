@@ -2,7 +2,7 @@
 // (requeriría un estado como en RegistroModal)
 const Contacto = () => {
   return (
-    <main className="container my-5">
+    <div className="container my-5">
       <h2 className="text-center mb-4">Contacto</h2>
       <div className="row">
         <div className="col-md-8 mx-auto">
@@ -30,7 +30,7 @@ const Contacto = () => {
           </form>
         </div>
       </div>
-    </main>
+    </div>
   );
 };
 

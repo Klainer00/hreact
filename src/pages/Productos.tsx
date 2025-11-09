@@ -55,7 +55,7 @@ const Productos = () => {
 
   // --- Renderizado ---
   return (
-    <main className="container my-5">
+    <div className="container my-5">
       <h2 className="text-center mb-4">Nuestro Catálogo</h2>
 
       {/* 5. Barra de Búsqueda y Filtros */}
@@ -107,7 +107,7 @@ const Productos = () => {
           )}
         </div>
       )}
-    </main>
+    </div>
   );
 };
 

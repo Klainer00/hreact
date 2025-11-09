@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 const Blog = () => {
   return (
-    <main className="container my-5">
+    <div className="container my-5">
       <h2 className="text-center mb-4">Blog</h2>
       <div className="row g-4">
         {/* Blog 1 */}
@@ -39,7 +39,7 @@ const Blog = () => {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 };
 

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 const DetalleBlog2 = () => {
   return (
-    <main className="container my-5">
+    <div className="container my-5">
       <div className="row">
         <div className="col-lg-8 mx-auto">
           <h1 className="mb-3">5 Recetas Fáciles y Saludables</h1>
@@ -17,7 +17,7 @@ const DetalleBlog2 = () => {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 };
 
