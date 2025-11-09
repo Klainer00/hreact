@@ -30,6 +30,11 @@ const Navbar = () => {
                   <span className="nav-link">¡Hola, {usuario.nombre}!</span>
                 </li>
                 <li className="nav-item">
+                  <NavLink className="nav-link" to="/perfil.html">
+                    Mi Perfil
+                  </NavLink>
+                </li>
+                <li className="nav-item">
                   <a className="nav-link text-danger" href="#" onClick={logout} style={{ cursor: 'pointer', fontWeight: 'bold' }}>
                     Cerrar Sesión
                   </a>
