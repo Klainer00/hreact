@@ -13,6 +13,17 @@ export const fetchUsuarios = async (): Promise<Usuario[]> => {
     return [];
   }
 };
+export const fetchAdmins = async (): Promise<Usuario[]> => {
+  try {
+    const response = await fetch(`${BASE_URL}/admins.json`); 
+    if (!response.ok) throw new Error('Error al cargar administradores');
+    const data = await response.json();
+    return data.admins as Usuario[];
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+};
 
 export const fetchProductos = async (): Promise<Producto[]> => {
   try {

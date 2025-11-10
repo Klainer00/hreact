@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthProvider';
-import { fetchUsuarios } from '../../utils/api';
+import { fetchAdmins } from '../../utils/api';
 import { RolUsuario } from '../../interfaces/rolUsuario';
 import logo from '/img/Logo-convertido-a-pequeño-Photoroom.png'; 
 
@@ -22,7 +22,7 @@ const AdminLogin = () => {
     e.preventDefault();
     setError('');
 
-    const usuarios = await fetchUsuarios();
+    const usuarios = await fetchAdmins();
     const usuarioEncontrado = usuarios.find(u => 
       u.email === email && 
       u.password === password && 
@@ -31,7 +31,7 @@ const AdminLogin = () => {
 
     if (usuarioEncontrado) {
       login(usuarioEncontrado);
-      navigate('/admin/usuarios.html'); // Redirige al dashboard
+      navigate('/admin/usuarios.html'); 
     } else {
       setError('Acceso denegado. Correo, contraseña o rol incorrectos.');
     }

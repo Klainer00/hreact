@@ -81,7 +81,7 @@ const ModalUsuario = ({ show, onClose, onSave, usuarioToEdit }: Props) => {
               <div className="row">
                 <div className="col-md-6 mb-3">
                   <label htmlFor="rut" className="form-label">RUT</label>
-                  <input type="text" className={`form-control ${errors.rut ? 'is-invalid' : ''}`} id="rut" value={form.rut} onChange={handleChange} required />
+                  <input type="text" maxLength={9} className={`form-control ${errors.rut ? 'is-invalid' : ''}`} id="rut" value={form.rut} onChange={handleChange} required />
                   {errors.rut && <div className="invalid-feedback">{errors.rut}</div>}
                 </div>
                 <div className="col-md-6 mb-3">

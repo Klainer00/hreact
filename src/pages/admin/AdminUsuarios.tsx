@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { Usuario } from '../../interfaces/usuario';
-import { RolUsuario } from '../../interfaces/rolUsuario'; // <-- 1. Importar RolUsuario
+import { RolUsuario } from '../../interfaces/rolUsuario'; 
 import { fetchUsuarios } from '../../utils/api';
-import ModalUsuario from '../../components/modals/ModalUsuario';
-import Swal from 'sweetalert2'; // <-- 2. Importar Swal para la alerta
+import ModalUsuario from '../../components/modals/ModalUsuario'; // Tu ruta debe ser esta
+import Swal from 'sweetalert2'; 
 
 const AdminUsuarios = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -37,43 +37,102 @@ const AdminUsuarios = () => {
     setShowModal(true);
   };
 
-  const handleEliminar = (usuario: Usuario) => { // 3. Recibir el objeto 'usuario' completo
-    
-    // 4. Comprobar el rol
+  const handleEliminar = async (usuario: Usuario) => {
+    // Verificar si es admin
     if (usuario.rol === RolUsuario.Admin) {
-      Swal.fire({
+      await Swal.fire({
         title: 'Acción Denegada',
         text: 'No puedes eliminar a un usuario Administrador.',
         icon: 'error',
+        confirmButtonColor: '#dc3545',
         confirmButtonText: 'Entendido'
       });
-      return; // Detener la ejecución
+      return;
     }
 
-    // 5. Si no es admin, proceder con la eliminación
-    if (window.confirm(`¿Está seguro de que desea eliminar a ${usuario.nombre} ${usuario.apellido}?`)) {
-      const nuevosUsuarios = usuarios.filter(u => u.id !== usuario.id);
+    // Confirmar eliminación
+    const result = await Swal.fire({
+      title: '¿Estás seguro?',
+      text: `¿Deseas eliminar al usuario ${usuario.nombre} ${usuario.apellido}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const nuevosUsuarios = usuarios.filter(u => u.id !== usuario.id);
+        setUsuarios(nuevosUsuarios);
+        localStorage.setItem('usuarios', JSON.stringify(nuevosUsuarios));
+        
+        await Swal.fire({
+          title: '¡Eliminado!',
+          text: 'El usuario ha sido eliminado correctamente.',
+          icon: 'success',
+          timer: 1500, // <-- Añadido timer
+          showConfirmButton: false // <-- Añadido
+        });
+      } catch (error) {
+        await Swal.fire({
+          title: 'Error',
+          text: 'Ocurrió un error al eliminar el usuario.',
+          icon: 'error',
+          confirmButtonColor: '#dc3545'
+        });
+      }
+    }
+  };
+
+  // --- 💡 INICIO DE LA CORRECCIÓN 💡 ---
+  const handleSave = async (usuario: Usuario) => {
+    // 1. Declarar 'isEditing' FUERA del try/catch
+    const isEditing = usuarioToEdit !== null; 
+    
+    try {
+      let nuevosUsuarios;
+      
+      if (isEditing) {
+        nuevosUsuarios = usuarios.map(u => 
+          u.id === usuario.id ? { ...u, ...usuario } : u
+        );
+      } else {
+        const maxId = usuarios.reduce((max, u) => u.id > max ? u.id : max, 0);
+        const nuevoUsuarioConId = { ...usuario, id: maxId + 1 };
+        nuevosUsuarios = [...usuarios, nuevoUsuarioConId];
+      }
+      
       setUsuarios(nuevosUsuarios);
       localStorage.setItem('usuarios', JSON.stringify(nuevosUsuarios));
-    }
-  };
+      setShowModal(false);
 
-  const handleSave = (usuario: Usuario) => {
-    let nuevosUsuarios;
-    if (usuarioToEdit) {
-      nuevosUsuarios = usuarios.map(u => 
-        u.id === usuario.id ? { ...u, ...usuario } : u
-      );
-    } else {
-      const maxId = usuarios.reduce((max, u) => u.id > max ? u.id : max, 0);
-      const nuevoUsuarioConId = { ...usuario, id: maxId + 1 };
-      nuevosUsuarios = [...usuarios, nuevoUsuarioConId];
+      // 2. Mostrar mensaje de éxito
+      await Swal.fire({
+        title: '¡Éxito!',
+        text: isEditing 
+          ? `El usuario ${usuario.nombre} ha sido actualizado.`
+          : `El usuario ${usuario.nombre} ha sido creado.`,
+        icon: 'success',
+        timer: 1500, // <-- Añadido timer
+        showConfirmButton: false // <-- Añadido
+      });
+
+    } catch (error) {
+      // 3. Ahora 'isEditing' SÍ es accesible aquí
+      await Swal.fire({
+        title: 'Error',
+        text: isEditing 
+          ? 'Ocurrió un error al actualizar el usuario.'
+          : 'Ocurrió un error al crear el usuario.',
+        icon: 'error',
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Entendido'
+      });
     }
-    
-    setUsuarios(nuevosUsuarios);
-    localStorage.setItem('usuarios', JSON.stringify(nuevosUsuarios));
-    setShowModal(false); 
   };
+  // --- 💡 FIN DE LA CORRECCIÓN 💡 ---
 
   if (loading) {
     return <div>Cargando usuarios...</div>;
@@ -123,7 +182,7 @@ const AdminUsuarios = () => {
                   </button>
                   <button 
                     className="btn btn-danger btn-sm btn-eliminar ms-1" 
-                    onClick={() => handleEliminar(user)} // 6. Pasar el 'user' completo
+                    onClick={() => handleEliminar(user)} // Pasar el 'user' completo
                   >
                     Eliminar
                   </button>

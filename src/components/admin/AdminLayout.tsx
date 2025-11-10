@@ -10,14 +10,13 @@ const AdminLayout = () => {
     return <Navigate to="/admin/index.html" replace />;
   }
 
-  // 1. Usamos la nueva clase CSS 'admin-layout'
+
   return (
     <div className="admin-layout"> 
       <AdminSidebar />
       
-      {/* 2. Usamos la nueva clase CSS para el contenido */}
       <main className="admin-main-content">
-        <Outlet /> {/* Aquí se renderizan Dashboard, Usuarios, Productos, Pedidos */}
+        <Outlet /> 
       </main>
     </div>
   );

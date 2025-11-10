@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchProductos } from '../../utils/api'; // fetchProductos está bien, no los modificamos
+import { fetchUsuarios, fetchProductos } from '../../utils/api';
 import { loadPedidos } from '../../utils/storage';
 import type { Usuario } from '../../interfaces/usuario';
 import type { Producto } from '../../interfaces/producto';
@@ -10,32 +10,35 @@ const AdminDashboard = () => {
   const [productCount, setProductCount] = useState(0);
   const [pedidoCount, setPedidoCount] = useState(0);
 
-  // 💡 INICIO DE LA CORRECCIÓN
-  // Usamos 'useEffect' para cargar datos cuando el componente aparece.
   useEffect(() => {
     const loadStats = async () => {
-      // 1. Cargamos productos y pedidos como antes
-      const [products, pedidos] = await Promise.all([
-        fetchProductos(),
-        loadPedidos()
-      ]);
-      
-      // 2. Cargamos los usuarios DESDE LOCALSTORAGE
-      // Esta es la misma lógica que usa AdminUsuarios.tsx para obtener la lista
-      const usuariosGuardados: Usuario[] = JSON.parse(localStorage.getItem('usuarios') || '[]');
-      
-      // 3. Actualizamos los contadores
+      // --- 💡 INICIO DE LA CORRECCIÓN 💡 ---
+
+      // 1. Cargar Usuarios desde localStorage (igual que AdminUsuarios.tsx)
+      let usuariosGuardados: Usuario[] = JSON.parse(localStorage.getItem('usuarios') || 'null');
+      if (!usuariosGuardados) {
+        usuariosGuardados = await fetchUsuarios(); // Carga inicial desde JSON si no existe
+        localStorage.setItem('usuarios', JSON.stringify(usuariosGuardados));
+      }
       setUserCount(usuariosGuardados.length);
-      setProductCount(products.length);
+
+      // 2. Cargar Productos desde localStorage (igual que AdminProductos.tsx)
+      let productosGuardados: Producto[] = JSON.parse(localStorage.getItem('productos') || 'null');
+      if (!productosGuardados) {
+        productosGuardados = await fetchProductos(); // Carga inicial desde JSON si no existe
+        localStorage.setItem('productos', JSON.stringify(productosGuardados));
+      }
+      setProductCount(productosGuardados.length);
+
+      // 3. Cargar Pedidos (esto ya estaba bien)
+      const pedidos = loadPedidos();
       setPedidoCount(pedidos.length);
+      
+      // --- 💡 FIN DE LA CORRECCIÓN 💡 ---
     };
     
     loadStats();
-    
-    // Opcional: Escuchar cambios en localStorage para actualizar en tiempo real
-    // (Esto es más avanzado, por ahora lo cargamos al inicio)
-
-  }, []); // El array vacío '[]' hace que se ejecute solo una vez al montar
+  }, []); // Se ejecuta solo una vez al montar
 
   return (
     <>

@@ -2,20 +2,6 @@
   "usuarios": [
     {
       "id": 1,
-      "rut": "1-9",
-      "nombre": "Admin",
-      "apellido": "Maestro",
-      "fecha_nacimiento": "2000-01-01",
-      "email": "admin@huerto.cl",
-      "direccion": "Av. Siempre Viva 123",
-      "region": "Metropolitana de Santiago",
-      "comuna": "Santiago",
-      "rol": "Administrador",
-      "estado": "Activo",
-      "password": "admin"
-    },
-    {
-      "id": 2,
       "rut": "12345678-9",
       "nombre": "Juan",
       "apellido": "Pérez",
@@ -29,7 +15,7 @@
       "password": "password123"
     },
     {
-      "id": 3,
+      "id": 2,
       "rut": "98765432-1",
       "nombre": "Maria",
       "apellido": "Gonzalez",
@@ -43,7 +29,7 @@
       "password": "password456"
     },
     {
-      "id": 4,
+      "id": 3,
       "rut": "11111111-1",
       "nombre": "Carlos",
       "apellido": "Soto",
@@ -57,7 +43,7 @@
       "password": "password111"
     },
     {
-      "id": 5,
+      "id": 4,
       "rut": "87654321-0",
       "nombre": "Ana",
       "apellido": "López",
