@@ -1,10 +1,11 @@
-import '@testing-library/jest-dom';
-import { expect, afterEach } from 'vitest';
-import { cleanup } from '@testing-library/react';
-import matchers from '@testing-library/jest-dom/matchers';
+// test/setup.ts
 
-// Extiende Vitest con los comandos de jest-dom (ej: .toBeInTheDocument)
-expect.extend(matchers);
+// Esta línea importa los matchers (como .toBeInTheDocument)
+// y los añade a 'expect' automáticamente gracias a "globals: true".
+import '@testing-library/jest-dom'; 
+
+import { afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
 
 // Limpia el JSDOM después de cada prueba
 afterEach(() => {

@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-// La ruta ahora sube dos niveles (../..) para entrar a src/
 import { checkRut } from '../../src/utils/checkrut';
 
 describe('Pruebas para la utilidad checkRut', () => {

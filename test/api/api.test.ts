@@ -15,7 +15,7 @@ describe('Pruebas de las utilidades de API (api.ts)', () => {
 
   beforeEach(() => {
     // Interceptamos fetch
-    vi.spyOn(global, 'fetch').mockImplementation(() =>
+    vi.spyOn(window, 'fetch').mockImplementation(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve(mockDataUsuarios),
@@ -32,7 +32,7 @@ describe('Pruebas de las utilidades de API (api.ts)', () => {
     const usuarios = await fetchUsuarios();
 
     // Assert
-    expect(global.fetch).toHaveBeenCalledWith('/data/usuarios.json');
+    expect(window.fetch).toHaveBeenCalledWith('/data/usuarios.json');
     expect(usuarios.length).toBe(2);
     expect(usuarios[0].nombre).toBe('Juan');
   });
