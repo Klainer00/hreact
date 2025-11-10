@@ -23,9 +23,12 @@ const RegistroModal = () => {
     comuna: '',
   });
 
+  // --- 💡 INICIO DE LA CORRECCIÓN 💡 ---
+  // 1. Estado para 'poner en espera' al usuario que se va a loguear
+  const [usuarioParaLogin, setUsuarioParaLogin] = useState<Usuario | null>(null);
+  
   const [comunas, setComunas] = useState<string[]>([]);
 
-  // Lógica para cargar comunas
   useEffect(() => {
     if (form.region) {
       const regionData = regionesComunas.regiones.find(r => r.region === form.region);
@@ -34,80 +37,56 @@ const RegistroModal = () => {
       setComunas([]);
     }
   }, [form.region]);
+  
+  // 2. Este useEffect escucha el evento 'hidden.bs.modal' de Bootstrap
+  // Se ejecuta DESPUÉS de que el modal se cierra por completo
+  useEffect(() => {
+    const modalElement = modalRef.current;
+    if (!modalElement) return;
 
-  // Lógica de validación
-  const errors = useMemo(() => {
-    const err: Partial<Record<keyof typeof form, string>> = {};
-
-    if (!form.nombre.trim()) err.nombre = "El nombre es requerido.";
-    if (!form.apellido.trim()) err.apellido = "El apellido es requerido.";
-    if (!form.direccion.trim()) err.direccion = "La dirección es requerida.";
-    if (!form.region) err.region = "La región es requerida.";
-    if (!form.comuna) err.comuna = "La comuna es requerida.";
-
-    const rutValidation = checkRut(form.rut);
-    if (!rutValidation.valid) err.rut = rutValidation.message;
-
-    const emailRegex = /^[\w-\.]+@(duoc\.cl|profesor\.duoc\.cl|gmail\.com)$/;
-    if (!emailRegex.test(form.email.trim())) {
-      err.email = "Email inválido. Solo se permiten dominios @duoc.cl, @profesor.duoc.cl o @gmail.com.";
-    }
-
-    if (!form.password) {
-      err.password = "La contraseña es requerida.";
-    } else if (form.password.length < 4 || form.password.length > 10) {
-      err.password = "La contraseña debe tener entre 4 y 10 caracteres.";
-    }
-    
-    if (form.password !== form.password2) {
-      err.password2 = "Las contraseñas no coinciden.";
-    }
-
-    if (!form.fecha_nacimiento) {
-      err.fecha_nacimiento = "La fecha de nacimiento es requerida.";
-    } else {
-      const hoy = new Date();
-      const nacimiento = new Date(form.fecha_nacimiento);
-      let edad = hoy.getFullYear() - nacimiento.getFullYear();
-      const m = hoy.getMonth() - nacimiento.getMonth();
-      if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
-        edad--;
+    const handleModalHidden = () => {
+      // Si hay un usuario 'en espera', mostramos la alerta y hacemos login
+      if (usuarioParaLogin) {
+        Swal.fire(
+          "¡Éxito!", 
+          "Usuario registrado con éxito. Se iniciará tu sesión.", 
+          "success"
+        ).then(() => {
+          // Hacemos el login DESPUÉS de cerrar la alerta
+          login(usuarioParaLogin);
+          setUsuarioParaLogin(null); // Limpiamos el estado de espera
+          
+          // Limpiamos el formulario para la próxima vez
+          setForm({
+            rut: '', nombre: '', apellido: '', email: '', password: '',
+            password2: '', fecha_nacimiento: '', direccion: '',
+            region: '', comuna: ''
+          });
+        });
       }
-      if (edad < 18) {
-        err.fecha_nacimiento = "Debes ser mayor de 18 años para registrarte.";
-      }
-    }
+    };
 
-    return err;
-  }, [form]);
+    // Añadimos el listener de Bootstrap
+    modalElement.addEventListener('hidden.bs.modal', handleModalHidden);
 
-  const isValid = Object.keys(errors).length === 0;
+    // Limpiamos el listener al desmontar el componente
+    return () => {
+      modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
+    };
+  }, [usuarioParaLogin, login]); // Depende de estas variables
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { id, value } = e.target;
-    setForm(prev => ({ ...prev, [id.replace('reg-', '')]: value }));
-  };
-
-  // --- 💡 INICIO DE LA CORRECCIÓN 💡 ---
+  // 3. El handleSubmit AHORA NO HACE await NI login
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validaciones (esto está bien)
     if (!isValid) {
       await Swal.fire("Error", "Por favor corrige los errores del formulario.", "error");
       return;
     }
-    
-    // 1. Obtener la instancia del modal ANTES de cualquier 'await'
-    const modalInstance = bootstrap.Modal.getInstance(modalRef.current!);
-    if (!modalInstance) {
-      console.error("No se pudo obtener la instancia del modal");
-      return;
-    }
-
     const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
-    
     const rutDuplicado = usuarios.some((u: Usuario) => u.rut === form.rut);
     const emailDuplicado = usuarios.some((u: Usuario) => u.email === form.email);
-
     if (rutDuplicado) {
       await Swal.fire("Error", "El RUT ingresado ya se encuentra registrado.", "error");
       return;
@@ -117,11 +96,7 @@ const RegistroModal = () => {
       return;
     }
 
-    // 2. Oculta el modal de Bootstrap INMEDIATAMENTE
-    // Esto inicia la animación de cierre de Bootstrap.
-    modalInstance.hide();
-
-    // 3. Crear y guardar el usuario
+    // 4. Guardar usuario y ponerlo 'en espera'
     const maxId = usuarios.reduce((max: number, u: Usuario) => u.id > max ? u.id : max, 0);
     const nuevoUsuario: Usuario = {
       id: maxId + 1,
@@ -141,14 +116,62 @@ const RegistroModal = () => {
     usuarios.push(nuevoUsuario);
     localStorage.setItem('usuarios', JSON.stringify(usuarios));
     
-    // 4. Muestra la alerta de éxito (esto ya no interferirá)
-    await Swal.fire("¡Éxito!", "Usuario registrado con éxito. Se iniciará tu sesión.", "success");
-    
-    // 5. Finalmente, actualiza el estado de React (login)
-    // Esto causará el re-render DESPUÉS de que todo lo demás terminó.
-    login(nuevoUsuario);
+    // 5. Ponemos el usuario en el estado 'de espera'
+    setUsuarioParaLogin(nuevoUsuario);
+
+    // 6. Cerramos el modal (esto disparará el useEffect de arriba)
+    const modalInstance = bootstrap.Modal.getInstance(modalRef.current!);
+    if (modalInstance) {
+      modalInstance.hide();
+    }
   };
   // --- 💡 FIN DE LA CORRECCIÓN 💡 ---
+
+  // Lógica de validación (sin cambios)
+  const errors = useMemo(() => {
+    const err: Partial<Record<keyof typeof form, string>> = {};
+    if (!form.nombre.trim()) err.nombre = "El nombre es requerido.";
+    if (!form.apellido.trim()) err.apellido = "El apellido es requerido.";
+    if (!form.direccion.trim()) err.direccion = "La dirección es requerida.";
+    if (!form.region) err.region = "La región es requerida.";
+    if (!form.comuna) err.comuna = "La comuna es requerida.";
+    const rutValidation = checkRut(form.rut);
+    if (!rutValidation.valid) err.rut = rutValidation.message;
+    const emailRegex = /^[\w-\.]+@(duoc\.cl|profesor\.duoc\.cl|gmail\.com)$/;
+    if (!emailRegex.test(form.email.trim())) {
+      err.email = "Email inválido. Solo se permiten dominios @duoc.cl, @profesor.duoc.cl o @gmail.com.";
+    }
+    if (!form.password) {
+      err.password = "La contraseña es requerida.";
+    } else if (form.password.length < 4 || form.password.length > 10) {
+      err.password = "La contraseña debe tener entre 4 y 10 caracteres.";
+    }
+    if (form.password !== form.password2) {
+      err.password2 = "Las contraseñas no coinciden.";
+    }
+    if (!form.fecha_nacimiento) {
+      err.fecha_nacimiento = "La fecha de nacimiento es requerida.";
+    } else {
+      const hoy = new Date();
+      const nacimiento = new Date(form.fecha_nacimiento);
+      let edad = hoy.getFullYear() - nacimiento.getFullYear();
+      const m = hoy.getMonth() - nacimiento.getMonth();
+      if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
+        edad--;
+      }
+      if (edad < 18) {
+        err.fecha_nacimiento = "Debes ser mayor de 18 años para registrarte.";
+      }
+    }
+    return err;
+  }, [form]);
+
+  const isValid = Object.keys(errors).length === 0;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value } = e.target;
+    setForm(prev => ({ ...prev, [id.replace('reg-', '')]: value }));
+  };
 
   const getValidationClass = (fieldName: keyof typeof form) => {
     if (!form[fieldName]) return ''; 
