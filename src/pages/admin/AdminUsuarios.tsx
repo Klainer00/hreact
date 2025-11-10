@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Usuario } from '../../interfaces/usuario';
 import { RolUsuario } from '../../interfaces/rolUsuario'; 
 import { fetchUsuarios } from '../../utils/api';
-import ModalUsuario from '../../components/modals/ModalUsuario'; // Tu ruta debe ser esta
+import ModalUsuario from '../../components/modals/ModalUsuario'; 
 import Swal from 'sweetalert2'; 
 
 const AdminUsuarios = () => {
