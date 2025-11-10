@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthProvider';
 import { fetchUsuarios } from '../../utils/api';
@@ -11,8 +11,13 @@ const AdminLogin = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, usuario } = useAuth();
 
+  useEffect(() => {
+    if (usuario && (usuario.rol === RolUsuario.Admin || usuario.rol === RolUsuario.Vendedor)) {
+      navigate('/admin/dashboard'); // <-- 1. Actualizar aquí
+    }
+  }, [usuario, navigate]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

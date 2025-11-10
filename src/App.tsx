@@ -26,7 +26,6 @@ function App() {
       {/* Rutas Públicas (usan la plantilla con Navbar/Footer) */}
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
-        <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="index.html" element={<Home />} />
         <Route path="productos.html" element={<Productos />} />
         <Route path="nosotros.html" element={<Nosotros />} />
@@ -42,6 +41,8 @@ function App() {
         <Route path="usuarios.html" element={<AdminUsuarios />} />
         <Route path="producto.html" element={<AdminProductos />} />
         <Route path="pedidos.html" element={<AdminPedidos />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+
       </Route>
     </Routes>
   );

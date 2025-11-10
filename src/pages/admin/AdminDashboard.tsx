@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchUsuarios, fetchProductos } from '../../utils/api';
 import { loadPedidos } from '../../utils/storage';
-import type { Usuario } from '../../interfaces/usuario';
-import type { Producto } from '../../interfaces/producto';
-import type { Pedido } from '../../interfaces/pedido';
-
 const AdminDashboard = () => {
   const [userCount, setUserCount] = useState(0);
   const [productCount, setProductCount] = useState(0);

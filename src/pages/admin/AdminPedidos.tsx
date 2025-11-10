@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import type { Pedido } from '../../interfaces/pedido';
 import { loadPedidos } from '../../utils/storage';
-import ModalPedidoDetalle from '../../components/modals/ModalPedidoDetalle';
+import ModalPedidoDetalle from '../../components/modals/ModalPedidoDetalle'; // <-- 1. Importar modal
+
 const AdminPedidos = () => {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 2. Estado para manejar el modal
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
 
   useEffect(() => {
-    // Carga los pedidos desde localStorage al montar la página
     setLoading(true);
     const pedidosGuardados = loadPedidos();
-    // Los ordenamos del más nuevo al más viejo
     setPedidos(pedidosGuardados.reverse()); 
     setLoading(false);
   }, []);
@@ -29,14 +31,14 @@ const AdminPedidos = () => {
         {pedidos.length === 0 ? (
           <p className="text-muted">Aún no se han realizado pedidos.</p>
         ) : (
-          <table className="table table-hover table-sm">
+          <table className="table table-hover table-sm admin-table">
             <thead>
               <tr>
                 <th>ID Pedido</th>
                 <th>Fecha</th>
                 <th>Cliente</th>
-                <th>N° Items</th>
                 <th>Total</th>
+                <th>Acciones</th> {/* <-- 3. Nueva columna */}
               </tr>
             </thead>
             <tbody>
@@ -44,15 +46,29 @@ const AdminPedidos = () => {
                 <tr key={pedido.id}>
                   <td>{pedido.id}</td>
                   <td>{pedido.fecha}</td>
-                  <td>{pedido.cliente.nombre} ({pedido.cliente.email})</td>
-                  <td>{pedido.items.length}</td>
+                  <td>{pedido.cliente.nombre}</td>
                   <td>${pedido.total.toLocaleString('es-CL')}</td>
+                  <td>
+                    {/* 4. Botón para abrir modal */}
+                    <button 
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setPedidoSeleccionado(pedido)}
+                    >
+                      Ver Detalle
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* 5. Renderizar el modal */}
+      <ModalPedidoDetalle
+        pedido={pedidoSeleccionado}
+        onClose={() => setPedidoSeleccionado(null)}
+      />
     </>
   );
 };
