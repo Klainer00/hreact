@@ -1,11 +1,4 @@
-// src/utils/validation.ts
-
 import { checkRut } from './checkrut'; // Importamos tu validador de RUT existente
-
-// --- 1. Validación de Registro ---
-// (Basado en la lógica de tu src/components/modals/RegistroModal.tsx)
-
-// Define la forma de los datos del formulario de registro
 export interface TRegistroData {
   rut: string;
   nombre: string;
@@ -57,8 +50,6 @@ export const validarRegistro = (data: TRegistroData): TRegistroErrores => {
 };
 
 
-// --- 2. Validación de Login ---
-// (Basado en src/components/modals/LoginModal.tsx)
 
 export interface TLoginData {
   email: string;
@@ -67,16 +58,12 @@ export interface TLoginData {
 
 export type TLoginErrores = Partial<Record<keyof TLoginData, string>>;
 
-/**
- * Valida los datos del formulario de login.
- */
 export const validarLogin = (data: TLoginData): TLoginErrores => {
   const errores: TLoginErrores = {};
   
   if (!data.email.trim()) {
     errores.email = 'El email es requerido.';
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    // Regex genérica para email, ya que el login no tiene la restricción de dominios
     errores.email = 'El formato del email no es válido.';
   }
   
@@ -88,8 +75,6 @@ export const validarLogin = (data: TLoginData): TLoginErrores => {
 };
 
 
-// --- 3. Validación de Formulario de Contacto ---
-// (Basado en src/pages/Contacto.tsx)
 
 export interface TContactoData {
   'contact-name': string;

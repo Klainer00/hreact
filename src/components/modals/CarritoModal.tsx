@@ -1,11 +1,29 @@
 import { useCarrito } from '../../context/CarritoProvider';
 import { useAuth } from '../../context/AuthProvider';
+import type { Pedido } from '../../interfaces/pedido';
 import Swal from 'sweetalert2'; // <-- 1. Importar SweetAlert para la alerta de pago
+import { loadPedidos, savePedidos } from '../../utils/storage';
 
 const CarritoModal = () => {
   const { carrito, eliminarDelCarrito, incrementarCantidad, disminuirCantidad, limpiarCarrito, total } = useCarrito();
   const { usuario } = useAuth(); // 2. Obtener el usuario
-
+  const pedidos = loadPedidos();
+  const maxId = pedidos.reduce((max, p) => p.id > max ? p.id : max, 0);
+  const nuevoId = maxId + 1;
+  
+  const nuevoPedido: Pedido = {
+        id: nuevoId, // <-- 3. Asignamos el nuevo ID
+        fecha: new Date().toLocaleString('es-CL'),
+        cliente: {
+          id: usuario.id,
+          nombre: `${usuario.nombre} ${usuario.apellido}`,
+          email: usuario.email
+        },
+        items: carrito,
+        total: total
+      };
+      pedidos.push(nuevoPedido);
+    savePedidos(pedidos);
   const handleFinalizarCompra = () => {
     // 3. Esta función AHORA SÓLO se ejecuta si el usuario ESTÁ logueado
     Swal.fire({

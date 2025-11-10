@@ -44,3 +44,19 @@ export function loadCarrito(): ItemCarrito[] {
 export function saveCarrito(carrito: ItemCarrito[]): void {
   localStorage.setItem(CARRITO_KEY, JSON.stringify(carrito));
 }
+import type { Pedido } from '../interfaces/pedido'; // Ajusta la ruta si es necesario
+
+const PEDIDOS_KEY = 'pedidos';
+
+export function loadPedidos(): Pedido[] {
+    try {
+        const raw = localStorage.getItem(PEDIDOS_KEY);
+        return raw ? (JSON.parse(raw) as Pedido[]) : [];
+    } catch {
+        return [];
+    }
+}
+
+export function savePedidos(pedidos: Pedido[]): void {
+    localStorage.setItem(PEDIDOS_KEY, JSON.stringify(pedidos));
+}

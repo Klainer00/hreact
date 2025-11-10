@@ -17,6 +17,7 @@ import Perfil from './pages/Perfil';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
 import AdminProductos from './pages/admin/AdminProductos';
+import AdminPedidos from './pages/admin/AdminPedidos';
 
 function App() {
   return (
@@ -32,17 +33,13 @@ function App() {
         <Route path="detalle-blog-1.html" element={<DetalleBlog1 />} />
         <Route path="perfil.html" element={<Perfil />} />
       </Route>
-
-      {/* Rutas de Admin (usan la plantilla con Sidebar) */}
-      {/* Nota: El login de admin es una página especial
-        que NO usa el AdminLayout.
-      */}
-      <Route path="/admin" element={<AdminLogin />} />
-      <Route path="/admin/index.html" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin/index.html" element={<AdminLogin />} />
       
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="usuarios.html" element={<AdminUsuarios />} />
         <Route path="producto.html" element={<AdminProductos />} />
+        <Route path="pedidos.html" element={<AdminPedidos />} />
       </Route>
     </Routes>
   );

@@ -23,7 +23,11 @@ const AdminSidebar = () => {
               Gestión de Productos
             </NavLink>
           </li>
-          {/* Agrega más enlaces de admin aquí */}
+          <li className="nav-item">
+            <NavLink className="nav-link" to="/admin/pedidos.html">
+              Gestión de Pedidos
+            </NavLink>
+          </li>
         </ul>
         
         <hr />
