@@ -1,34 +1,51 @@
 import { useCarrito } from '../../context/CarritoProvider';
 import { useAuth } from '../../context/AuthProvider';
-import type { Pedido } from '../../interfaces/pedido';
-import Swal from 'sweetalert2'; // <-- 1. Importar SweetAlert para la alerta de pago
-import { loadPedidos, savePedidos } from '../../utils/storage';
+import type { Pedido } from '../../interfaces/pedido'; 
+import Swal from 'sweetalert2';
+import { loadPedidos, savePedidos } from '../../utils/storage'; 
 
 const CarritoModal = () => {
-  const { carrito, eliminarDelCarrito, incrementarCantidad, disminuirCantidad, limpiarCarrito, total } = useCarrito();
-  const { usuario } = useAuth(); // 2. Obtener el usuario
-  const pedidos = loadPedidos();
-  const maxId = pedidos.reduce((max, p) => p.id > max ? p.id : max, 0);
-  const nuevoId = maxId + 1;
-  
-  const nuevoPedido: Pedido = {
-        id: nuevoId, // <-- 3. Asignamos el nuevo ID
-        fecha: new Date().toLocaleString('es-CL'),
-        cliente: {
-          id: usuario.id,
-          nombre: `${usuario.nombre} ${usuario.apellido}`,
-          email: usuario.email
-        },
-        items: carrito,
-        total: total
-      };
-      pedidos.push(nuevoPedido);
-    savePedidos(pedidos);
+  // 1. Obtener hooks
+  const { carrito, limpiarCarrito, total, disminuirCantidad, incrementarCantidad, eliminarDelCarrito } = useCarrito();
+  const { usuario } = useAuth();
+
+  // 2. Mover TODA la lógica de creación del pedido DENTRO del handler
   const handleFinalizarCompra = () => {
-    // 3. Esta función AHORA SÓLO se ejecuta si el usuario ESTÁ logueado
+    // El botón ya se encarga de abrir el login si el usuario es null,
+    // pero mantenemos esta guarda por si acaso.
+    if (!usuario) { 
+      return; 
+    }
+
+    // --- Lógica de ID Auto-incremental ---
+    const pedidos = loadPedidos();
+    const maxId = pedidos.reduce((max, p) => p.id > max ? p.id : max, 0);
+    const nuevoId = maxId + 1;
+    // --- Fin de la lógica de ID ---
+
+    const nuevoPedido: Pedido = {
+    id: nuevoId,
+      fecha: new Date().toLocaleString('es-CL'),
+      cliente: {
+        id: usuario.id,
+        nombre: `${usuario.nombre} ${usuario.apellido}`,
+        email: usuario.email,
+        direccion: usuario.direccion, 
+        comuna: usuario.comuna,      
+        region: usuario.region        
+      },
+      items: carrito,
+      total: total
+    };
+    
+    // Guardar el pedido
+    pedidos.push(nuevoPedido);
+    savePedidos(pedidos);
+    
+    // Mostrar alerta y limpiar carrito
     Swal.fire({
       title: "¡Gracias por tu compra!",
-      text: "Tu pago ha sido procesado exitosamente.",
+      text: `Tu pedido #${nuevoPedido.id} ha sido procesado.`,
       icon: "success",
       confirmButtonText: "Entendido"
     });
@@ -44,13 +61,11 @@ const CarritoModal = () => {
             <button className="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
           <div className="modal-body">
-            {/* ... (La tabla del carrito que ya tenías) ... */}
             {carrito.length === 0 ? (
               <p className="text-center text-muted">Tu carrito está vacío.</p>
             ) : (
               <div className="table-responsive">
                 <table className="table table-hover align-middle text-center">
-                  {/* ... (el thead) ... */}
                   <thead className="table-light">
                     <tr>
                       <th>Imagen</th>
@@ -111,16 +126,12 @@ const CarritoModal = () => {
           </div>
           <div className="modal-footer">
             <button className="btn btn-secondary" data-bs-dismiss="modal">Seguir Comprando</button>
-            
-            {/* 4. BOTÓN CONDICIONAL */}
             <button 
               className="btn btn-success" 
               id="btnFinalizarCompra"
               disabled={carrito.length === 0}
-              // Si hay usuario, ejecuta el pago y cierra el modal
               onClick={usuario ? handleFinalizarCompra : undefined}
               data-bs-dismiss={usuario ? "modal" : ""}
-              // Si NO hay usuario, cierra este modal y abre el de Login
               data-bs-toggle={!usuario ? "modal" : ""}
               data-bs-target={!usuario ? "#loginModal" : ""}
             >

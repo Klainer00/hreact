@@ -15,6 +15,7 @@ import Perfil from './pages/Perfil';
 
 // Importar Páginas de Admin
 import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
 import AdminProductos from './pages/admin/AdminProductos';
 import AdminPedidos from './pages/admin/AdminPedidos';
@@ -25,6 +26,7 @@ function App() {
       {/* Rutas Públicas (usan la plantilla con Navbar/Footer) */}
       <Route path="/" element={<Layout />}>
         <Route index element={<Home />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="index.html" element={<Home />} />
         <Route path="productos.html" element={<Productos />} />
         <Route path="nosotros.html" element={<Nosotros />} />

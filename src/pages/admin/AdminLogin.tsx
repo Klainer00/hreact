@@ -3,10 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthProvider';
 import { fetchUsuarios } from '../../utils/api';
 import { RolUsuario } from '../../interfaces/rolUsuario';
-import logo from '/img/Logo-convertido-a-pequeño-Photoroom.png'; // Importa el logo
+import logo from '/img/Logo-convertido-a-pequeño-Photoroom.png'; 
 
-// Importa el CSS específico de esta página (ver nota abajo)
-// import '../../../css/loginAdmin.css'; 
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');

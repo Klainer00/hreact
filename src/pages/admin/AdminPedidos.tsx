@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Pedido } from '../../interfaces/pedido';
 import { loadPedidos } from '../../utils/storage';
-
+import ModalPedidoDetalle from '../../components/modals/ModalPedidoDetalle';
 const AdminPedidos = () => {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);

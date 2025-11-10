@@ -97,9 +97,6 @@ html, body, #root {
   min-height: 100vh; /* Ocupa al menos toda la altura de la pantalla */
 }
 
-/* 3. Esta es la línea MÁGICA:
-      Hace que el 'main' (donde viven tus páginas) 
-      crezca y ocupe todo el espacio vacío. */
 main {
   flex-grow: 1; 
 }
@@ -122,4 +119,88 @@ main {
   height: 100%;
   object-fit: cover;
   border-radius: 0.5rem;
+}
+/* --- TEMA DEL PANEL DE ADMIN --- */
+
+/* 1. Layout Básico de Admin */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* 2. Sidebar (Altura completa y transiciones) */
+.sidebar {
+  width: 280px;
+  min-width: 280px;
+  background-color: #343a40; /* Bootstrap Dark */
+  color: white;
+  position: sticky; /* Fija la sidebar */
+  top: 0;
+  height: 100vh; /* Altura completa */
+  overflow-y: auto; /* Permite scroll si hay muchos enlaces */
+}
+
+.sidebar .nav-link {
+  color: #adb5bd; /* Gris claro */
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out; /* Transición */
+}
+
+.sidebar .nav-link:hover {
+  color: #ffffff;
+  background-color: #495057; /* Gris más oscuro */
+}
+
+.sidebar .nav-link.active {
+  color: #ffffff;
+  background-color: #198754; /* Verde (color principal) */
+  font-weight: 700;
+}
+
+.sidebar .dropdown-menu {
+  background-color: #343a40;
+}
+.sidebar .dropdown-item {
+  color: #adb5bd;
+}
+.sidebar .dropdown-item:hover {
+  color: #ffffff;
+  background-color: #495057;
+}
+
+/* 3. Contenido Principal del Admin */
+.admin-main-content {
+  flex-grow: 1;
+  padding: 2rem;
+  background-color: #f4f7f6; /* Fondo gris muy claro */
+}
+
+/* 4. Tarjetas del Dashboard (como en la foto) */
+.dashboard-card {
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-card .card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard-card .card-icon {
+  font-size: 3rem;
+  opacity: 0.3;
+}
+
+/* 5. Estilos de Tablas de Admin */
+.admin-table thead {
+  background-color: #e9ecef;
 }
