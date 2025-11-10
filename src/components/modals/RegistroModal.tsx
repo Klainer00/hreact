@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { Modal } from 'bootstrap'; 
 import { useAuth } from '../../context/AuthProvider';
 import { regionesComunas } from '../../utils/regiones';
 import { checkRut } from '../../utils/checkrut';
-import { formatRutOnType } from '../../utils/formatRut';
+import { formatRutOnType } from '../../utils/formatRut'; 
 import type { Usuario } from '../../interfaces/usuario';
 import { RolUsuario } from '../../interfaces/rolUsuario';
 import Swal from 'sweetalert2';
@@ -16,7 +17,7 @@ const RegistroModal = () => {
     apellido: '',
     email: '',
     password: '',
-    password2: '',
+    password2: '', 
     fecha_nacimiento: '',
     direccion: '',
     region: '',
@@ -25,7 +26,6 @@ const RegistroModal = () => {
 
   const [comunas, setComunas] = useState<string[]>([]);
 
-  // Lógica para cargar comunas
   useEffect(() => {
     if (form.region) {
       const regionData = regionesComunas.regiones.find(r => r.region === form.region);
@@ -37,31 +37,25 @@ const RegistroModal = () => {
 
   const errors = useMemo(() => {
     const err: Partial<Record<keyof typeof form, string>> = {};
-
     if (!form.nombre.trim()) err.nombre = "El nombre es requerido.";
     if (!form.apellido.trim()) err.apellido = "El apellido es requerido.";
     if (!form.direccion.trim()) err.direccion = "La dirección es requerida.";
     if (!form.region) err.region = "La región es requerida.";
     if (!form.comuna) err.comuna = "La comuna es requerida.";
-
     const rutValidation = checkRut(form.rut);
     if (!rutValidation.valid) err.rut = rutValidation.message;
-
     const emailRegex = /^[\w-\.]+@(duoc\.cl|profesor\.duoc\.cl|gmail\.com)$/;
     if (!emailRegex.test(form.email.trim())) {
       err.email = "Email inválido. Solo se permiten dominios @duoc.cl, @profesor\.duoc\.cl o @gmail.com.";
     }
-
     if (!form.password) {
       err.password = "La contraseña es requerida.";
     } else if (form.password.length < 4 || form.password.length > 10) {
       err.password = "La contraseña debe tener entre 4 y 10 caracteres.";
     }
-    
     if (form.password !== form.password2) {
       err.password2 = "Las contraseñas no coinciden.";
     }
-
     if (!form.fecha_nacimiento) {
       err.fecha_nacimiento = "La fecha de nacimiento es requerida.";
     } else {
@@ -72,11 +66,10 @@ const RegistroModal = () => {
       if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
         edad--;
       }
-      if (edad < 18 && edad > 120) {
+      if (edad < 18 || edad > 120) { // <-- Corregido a 18 y 120
         err.fecha_nacimiento = "Debes ser mayor de 18 años para registrarte.";
       }
     }
-
     return err;
   }, [form]);
 
@@ -84,8 +77,6 @@ const RegistroModal = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
-    
-    // --- MODIFICACIÓN AQUÍ ---
     const inputId = id.replace('reg-', '');
 
     if (inputId === 'rut') {
@@ -105,10 +96,8 @@ const RegistroModal = () => {
     }
 
     const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
-    
     const rutLimpio = form.rut.replace(/\./g, '').replace('-', '');
     const emailLimpio = form.email.trim();
-
     const rutDuplicado = usuarios.some((u: Usuario) => u.rut.replace(/\./g, '').replace('-', '') === rutLimpio);
     const emailDuplicado = usuarios.some((u: Usuario) => u.email === emailLimpio);
 
@@ -124,10 +113,10 @@ const RegistroModal = () => {
     const maxId = usuarios.reduce((max: number, u: Usuario) => u.id > max ? u.id : max, 0);
     const nuevoUsuario: Usuario = {
       id: maxId + 1,
-      rut: form.rut, 
+      rut: form.rut,
       nombre: form.nombre,
       apellido: form.apellido,
-      email: emailLimpio, 
+      email: emailLimpio,
       password: form.password,
       direccion: form.direccion,
       region: form.region,
@@ -138,34 +127,37 @@ const RegistroModal = () => {
     };
 
     try {
-      // Guardar usuario
       usuarios.push(nuevoUsuario);
       localStorage.setItem('usuarios', JSON.stringify(usuarios));
 
-      // Cerrar modal de forma manual
-      const modalElement = document.querySelector('#registroModal') as HTMLElement;
-      modalElement.style.display = 'none';
-      modalElement.classList.remove('show');
-      document.body.classList.remove('modal-open');
+      // --- 💡 INICIO DE LA CORRECCIÓN 💡 ---
       
-      // Remover backdrop
-      const backdrops = document.querySelectorAll('.modal-backdrop');
-      backdrops.forEach(backdrop => backdrop.remove());
-      
-      // Restaurar estilos del body
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = '';
-      
-      // Mostrar mensaje de éxito
-      await Swal.fire({
-        title: "¡Éxito!",
-        text: "Usuario registrado con éxito. Se iniciará tu sesión.",
-        icon: "success",
-        allowOutsideClick: false
-      });
+      const modalElement = modalRef.current;
+      if (!modalElement) return;
 
-      // Hacer login
-      login(nuevoUsuario);
+      // 1. Definimos qué hacer DESPUÉS de que el modal se oculte
+      const onModalHidden = async () => {
+        // 3. Mostramos Swal
+        await Swal.fire({
+          title: "¡Éxito!",
+          text: "Usuario registrado con éxito. Se iniciará tu sesión.",
+          icon: "success",
+          allowOutsideClick: false
+        });
+        
+        // 4. Hacemos login
+        login(nuevoUsuario);
+
+        // 5. Limpiamos el listener para que no se ejecute de nuevo
+        modalElement.removeEventListener('hidden.bs.modal', onModalHidden);
+      };
+
+      // 2. Nos "suscribimos" al evento de Bootstrap y luego llamamos a hide()
+      modalElement.addEventListener('hidden.bs.modal', onModalHidden, { once: true });
+      Modal.getInstance(modalElement)?.hide();
+
+      // --- 💡 FIN DE LA CORRECCIÓN 💡 ---
+
     } catch (error) {
       console.error('Error:', error);
       await Swal.fire("Error", "Ocurrió un error al procesar el registro.", "error");

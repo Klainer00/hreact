@@ -7,8 +7,7 @@ const Perfil = () => {
   // 1. Obtenemos el usuario desde el contexto
   const { usuario } = useAuth(); //
 
-  // 2. Si el estado de Auth dice que no hay usuario, redirigimos
-  //    Esto es automático si el usuario cierra sesión en otra parte.
+
   if (!usuario) {
     return <Navigate to="/index.html" replace />;
   }

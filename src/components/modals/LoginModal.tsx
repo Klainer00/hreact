@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { Modal } from 'bootstrap'; 
 import { useAuth } from '../../context/AuthProvider';
 import { fetchUsuarios } from '../../utils/api';
 import Swal from 'sweetalert2';
@@ -8,6 +9,8 @@ const LoginModal = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
+  
+  const modalRef = useRef<HTMLDivElement>(null); 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,20 +21,12 @@ const LoginModal = () => {
       const usuarioEncontrado = usuarios.find(u => u.email === email && u.password === password);
 
       if (usuarioEncontrado) {
-        // Cerrar modal manualmente
-        const modalElement = document.querySelector('#loginModal') as HTMLElement;
-        modalElement.style.display = 'none';
-        modalElement.classList.remove('show');
-        document.body.classList.remove('modal-open');
         
-        // Remover backdrop
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        backdrops.forEach(backdrop => backdrop.remove());
+        if (modalRef.current) {
+          const modal = Modal.getInstance(modalRef.current);
+          modal?.hide();
+        }
         
-        // Restaurar estilos del body
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-
         // Login y resetear campos
         login(usuarioEncontrado);
         setError('');
@@ -56,7 +51,7 @@ const LoginModal = () => {
   };
 
   return (
-    <div className="modal fade" id="loginModal" tabIndex={-1}>
+    <div className="modal fade" id="loginModal" tabIndex={-1} ref={modalRef}> 
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
@@ -91,6 +86,17 @@ const LoginModal = () => {
                   required 
                 />
               </div>
+              <div className="text-center mb-3">
+                <a 
+                  href="#"
+                  data-bs-toggle="modal"
+                  data-bs-target="#registroModal"
+                  style={{ textDecoration: 'none' }}
+                >
+                  ¿No tienes cuenta? Regístrate aquí
+                </a>
+              </div>
+
               <div className="text-center">
                 <button type="submit" className="btn btn-success w-100">Ingresar</button>
               </div>
