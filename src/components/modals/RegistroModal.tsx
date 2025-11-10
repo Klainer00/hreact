@@ -16,7 +16,7 @@ const RegistroModal = () => {
     apellido: '',
     email: '',
     password: '',
-    password2: '',
+    password2: '', // Para confirmar contraseña
     fecha_nacimiento: '',
     direccion: '',
     region: '',
@@ -25,6 +25,7 @@ const RegistroModal = () => {
 
   const [comunas, setComunas] = useState<string[]>([]);
 
+  // Lógica para cargar comunas
   useEffect(() => {
     if (form.region) {
       const regionData = regionesComunas.regiones.find(r => r.region === form.region);
@@ -34,6 +35,7 @@ const RegistroModal = () => {
     }
   }, [form.region]);
 
+  // Lógica de validación
   const errors = useMemo(() => {
     const err: Partial<Record<keyof typeof form, string>> = {};
 
@@ -86,6 +88,7 @@ const RegistroModal = () => {
     setForm(prev => ({ ...prev, [id.replace('reg-', '')]: value }));
   };
 
+  // --- 💡 INICIO DE LA CORRECCIÓN 💡 ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) {
@@ -107,8 +110,19 @@ const RegistroModal = () => {
       return;
     }
 
+    // 1. Obtener la instancia del modal ANTES de cualquier 'await'
+    const modalInstance = bootstrap.Modal.getInstance(modalRef.current!);
+    if (!modalInstance) {
+      console.error("No se pudo obtener la instancia del modal");
+      return;
+    }
+
+    // 2. Oculta el modal de Bootstrap INMEDIATAMENTE
+    // Esto inicia la animación de cierre de Bootstrap.
+    modalInstance.hide();
+
+    // 3. Crear y guardar el usuario
     const maxId = usuarios.reduce((max: number, u: Usuario) => u.id > max ? u.id : max, 0);
-    
     const nuevoUsuario: Usuario = {
       id: maxId + 1,
       rut: form.rut,
@@ -127,13 +141,14 @@ const RegistroModal = () => {
     usuarios.push(nuevoUsuario);
     localStorage.setItem('usuarios', JSON.stringify(usuarios));
     
+    // 4. Muestra la alerta de éxito (esto ya no interferirá)
     await Swal.fire("¡Éxito!", "Usuario registrado con éxito. Se iniciará tu sesión.", "success");
     
+    // 5. Finalmente, actualiza el estado de React (login)
+    // Esto causará el re-render DESPUÉS de que todo lo demás terminó.
     login(nuevoUsuario);
-
-    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalRef.current!);
-    modalInstance.hide();
   };
+  // --- 💡 FIN DE LA CORRECCIÓN 💡 ---
 
   const getValidationClass = (fieldName: keyof typeof form) => {
     if (!form[fieldName]) return ''; 
@@ -151,6 +166,7 @@ const RegistroModal = () => {
           <div className="modal-body">
             <form id="formRegistroModal" onSubmit={handleSubmit} noValidate>
               <div className="row">
+                
                 <div className="col-md-6 mb-3">
                   <label htmlFor="reg-rut" className="form-label">RUT</label>
                   <input type="text" className={`form-control ${getValidationClass('rut')}`} 
