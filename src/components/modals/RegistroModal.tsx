@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../context/AuthProvider';
-import { regionesComunas } from '../../utils/regiones'; // (Debes tener este archivo, migrado de regiones-comunas.js)
+import { regionesComunas } from '../../utils/regiones'; // <-- 💡 CAMBIO DE RUTA
 import { checkRut } from '../../utils/checkrut';
 import type { Usuario } from '../../interfaces/usuario';
 import { RolUsuario } from '../../interfaces/rolUsuario'; // Tu ruta
@@ -156,7 +156,7 @@ const RegistroModal = () => {
 
   // Helper para mostrar feedback de validación
   const getValidationClass = (fieldName: keyof typeof form) => {
-    if (!form[fieldName]) return ''; // No mostrar nada si está vacío
+    if (!form[fieldName]) return ''; 
     return errors[fieldName] ? 'is-invalid' : 'is-valid';
   };
 
