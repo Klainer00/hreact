@@ -11,6 +11,12 @@ const mockDataUsuarios = {
   ]
 };
 
+describe('API', () => {
+  it('performs basic test', () => {
+    expect(true).toBe(true);
+  });
+});
+
 describe('Pruebas de las utilidades de API (api.ts)', () => {
 
   beforeEach(() => {

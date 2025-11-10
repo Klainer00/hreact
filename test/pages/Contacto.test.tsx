@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-// La ruta ahora sube dos niveles (../..) para entrar a src/
 import Contacto from '../../src/pages/Contacto';
 
 describe('Pruebas de la página Contacto.tsx', () => {
-
   it('debe renderizar el formulario con todos sus campos', () => {
     // Arrange
     render(<Contacto />);
@@ -19,5 +17,10 @@ describe('Pruebas de la página Contacto.tsx', () => {
     expect(inputEmail).toBeInTheDocument();
     expect(botonEnviar).toBeInTheDocument();
     expect(inputEmail).toHaveAttribute('type', 'email');
+  });
+
+  it('renders contact form', () => {
+    render(<Contacto />);
+    expect(screen.getByText(/Contacto/i)).toBeInTheDocument();
   });
 });
