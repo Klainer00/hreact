@@ -96,6 +96,13 @@ const RegistroModal = () => {
       return;
     }
     
+    // 1. Obtener la instancia del modal ANTES de cualquier 'await'
+    const modalInstance = bootstrap.Modal.getInstance(modalRef.current!);
+    if (!modalInstance) {
+      console.error("No se pudo obtener la instancia del modal");
+      return;
+    }
+
     const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
     
     const rutDuplicado = usuarios.some((u: Usuario) => u.rut === form.rut);
@@ -107,13 +114,6 @@ const RegistroModal = () => {
     }
     if (emailDuplicado) {
       await Swal.fire("Error", "El Email ingresado ya se encuentra registrado.", "error");
-      return;
-    }
-
-    // 1. Obtener la instancia del modal ANTES de cualquier 'await'
-    const modalInstance = bootstrap.Modal.getInstance(modalRef.current!);
-    if (!modalInstance) {
-      console.error("No se pudo obtener la instancia del modal");
       return;
     }
 
