@@ -50,6 +50,43 @@ const LoginModal = () => {
     }
   };
 
+  const handleOpenRegistro = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (modalRef.current) {
+      const loginModalInstance = Modal.getInstance(modalRef.current);
+      
+      if (loginModalInstance) {
+        // Cerrar el modal de login
+        loginModalInstance.hide();
+        
+        // Esperar a que el modal se cierre completamente
+        const onHidden = () => {
+          // Limpiar cualquier backdrop residual
+          const backdrops = document.querySelectorAll('.modal-backdrop');
+          backdrops.forEach(backdrop => backdrop.remove());
+          
+          // Limpiar clases del body
+          document.body.classList.remove('modal-open');
+          document.body.style.removeProperty('overflow');
+          document.body.style.removeProperty('padding-right');
+          
+          // Abrir el modal de registro
+          const registroModalElement = document.getElementById('registroModal');
+          if (registroModalElement) {
+            const registroModal = new Modal(registroModalElement);
+            registroModal.show();
+          }
+          
+          // Remover el listener
+          modalRef.current?.removeEventListener('hidden.bs.modal', onHidden);
+        };
+        
+        modalRef.current.addEventListener('hidden.bs.modal', onHidden);
+      }
+    }
+  };
+
   return (
     <div className="modal fade" id="loginModal" tabIndex={-1} ref={modalRef}> 
       <div className="modal-dialog modal-dialog-centered">
@@ -89,9 +126,8 @@ const LoginModal = () => {
               <div className="text-center mb-3">
                 <a 
                   href="#"
-                  data-bs-toggle="modal"
-                  data-bs-target="#registroModal"
-                  style={{ textDecoration: 'none' }}
+                  onClick={handleOpenRegistro}
+                  style={{ textDecoration: 'none', cursor: 'pointer' }}
                 >
                   ¿No tienes cuenta? Regístrate aquí
                 </a>

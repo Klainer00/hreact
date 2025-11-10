@@ -46,7 +46,7 @@ const RegistroModal = () => {
     if (!rutValidation.valid) err.rut = rutValidation.message;
     const emailRegex = /^[\w-\.]+@(duoc\.cl|profesor\.duoc\.cl|gmail\.com)$/;
     if (!emailRegex.test(form.email.trim())) {
-      err.email = "Email inválido. Solo se permiten dominios @duoc.cl, @profesor\.duoc\.cl o @gmail.com.";
+      err.email = "Email inválido. Solo se permiten dominios @duoc.cl, @profesor.duoc.cl o @gmail.com.";
     }
     if (!form.password) {
       err.password = "La contraseña es requerida.";
@@ -66,7 +66,7 @@ const RegistroModal = () => {
       if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
         edad--;
       }
-      if (edad < 18 || edad > 120) { // <-- Corregido a 18 y 120
+      if (edad < 18 || edad > 120) {
         err.fecha_nacimiento = "Debes ser mayor de 18 años para registrarte.";
       }
     }
@@ -130,33 +130,42 @@ const RegistroModal = () => {
       usuarios.push(nuevoUsuario);
       localStorage.setItem('usuarios', JSON.stringify(usuarios));
 
-      // --- 💡 INICIO DE LA CORRECCIÓN 💡 ---
-      
       const modalElement = modalRef.current;
       if (!modalElement) return;
 
-      // 1. Definimos qué hacer DESPUÉS de que el modal se oculte
-      const onModalHidden = async () => {
-        // 3. Mostramos Swal
-        await Swal.fire({
-          title: "¡Éxito!",
-          text: "Usuario registrado con éxito. Se iniciará tu sesión.",
-          icon: "success",
-          allowOutsideClick: false
-        });
-        
-        // 4. Hacemos login
-        login(nuevoUsuario);
+      const modalInstance = Modal.getInstance(modalElement);
+      
+      if (modalInstance) {
+        // Definir qué hacer después de que el modal se cierre
+        const onModalHidden = async () => {
+          // Limpiar cualquier backdrop residual
+          const backdrops = document.querySelectorAll('.modal-backdrop');
+          backdrops.forEach(backdrop => backdrop.remove());
+          
+          // Limpiar clases del body
+          document.body.classList.remove('modal-open');
+          document.body.style.removeProperty('overflow');
+          document.body.style.removeProperty('padding-right');
+          
+          // Mostrar mensaje de éxito
+          await Swal.fire({
+            title: "¡Éxito!",
+            text: "Usuario registrado con éxito. Se iniciará tu sesión.",
+            icon: "success",
+            allowOutsideClick: false
+          });
+          
+          // Hacer login
+          login(nuevoUsuario);
+          
+          // Remover el listener
+          modalElement.removeEventListener('hidden.bs.modal', onModalHidden);
+        };
 
-        // 5. Limpiamos el listener para que no se ejecute de nuevo
-        modalElement.removeEventListener('hidden.bs.modal', onModalHidden);
-      };
-
-      // 2. Nos "suscribimos" al evento de Bootstrap y luego llamamos a hide()
-      modalElement.addEventListener('hidden.bs.modal', onModalHidden, { once: true });
-      Modal.getInstance(modalElement)?.hide();
-
-      // --- 💡 FIN DE LA CORRECCIÓN 💡 ---
+        // Suscribirse al evento y cerrar el modal
+        modalElement.addEventListener('hidden.bs.modal', onModalHidden);
+        modalInstance.hide();
+      }
 
     } catch (error) {
       console.error('Error:', error);
