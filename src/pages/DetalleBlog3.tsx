@@ -11,7 +11,7 @@ const DetalleBlog3 = () => {
           </Link>
           <img src="/img/blog-beneficios-organico.png" className="img-fluid rounded mb-4" alt="Orgánicos" />
           <p>La palabra "orgánico" se ha vuelto muy popular...</p>
-          {/* ...Pega el resto del contenido del blog 3 aquí... */}
+
           <Link to="/blogs.html" className="btn btn-outline-secondary btn-sm mt-4">
             &larr; Volver al Blog
           </Link>

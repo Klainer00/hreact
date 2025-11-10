@@ -11,6 +11,8 @@ import Contacto from './pages/Contacto';
 import DetalleBlog1 from './pages/DetalleBlog1';
 import DetalleBlog2 from './pages/DetalleBlog2';
 import DetalleBlog3 from './pages/DetalleBlog3';
+import Perfil from './pages/Perfil';
+
 
 // Páginas de Admin
 import AdminLogin from './pages/admin/AdminLogin';
@@ -30,6 +32,8 @@ function App() {
         <Route path="nosotros.html" element={<Nosotros />} />
         <Route path="blogs.html" element={<Blog />} />
         <Route path="contacto.html" element={<Contacto />} />
+        <Route path="perfil.html" element={<Perfil />} />
+
         <Route path="detalle-blog-1.html" element={<DetalleBlog1 />} />
         <Route path="detalle-blog-2.html" element={<DetalleBlog2 />} />
         <Route path="detalle-blog-3.html" element={<DetalleBlog3 />} />

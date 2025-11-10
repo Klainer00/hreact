@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthProvider';
 import { regionesComunas } from '../../utils/regiones';
 import { checkRut } from '../../utils/checkrut';
+import { formatRutOnType } from '../../utils/formatRut';
 import type { Usuario } from '../../interfaces/usuario';
 import { RolUsuario } from '../../interfaces/rolUsuario';
 import Swal from 'sweetalert2';
@@ -15,7 +16,7 @@ const RegistroModal = () => {
     apellido: '',
     email: '',
     password: '',
-    password2: '', // Para confirmar contraseña
+    password2: '',
     fecha_nacimiento: '',
     direccion: '',
     region: '',
@@ -34,7 +35,6 @@ const RegistroModal = () => {
     }
   }, [form.region]);
 
-  // Lógica de validación
   const errors = useMemo(() => {
     const err: Partial<Record<keyof typeof form, string>> = {};
 
@@ -84,7 +84,16 @@ const RegistroModal = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
-    setForm(prev => ({ ...prev, [id.replace('reg-', '')]: value }));
+    
+    // --- MODIFICACIÓN AQUÍ ---
+    const inputId = id.replace('reg-', '');
+
+    if (inputId === 'rut') {
+      const formattedRut = formatRutOnType(value);
+      setForm(prev => ({ ...prev, [inputId]: formattedRut }));
+    } else {
+      setForm(prev => ({ ...prev, [inputId]: value }));
+    }
   };
 
 
@@ -97,8 +106,11 @@ const RegistroModal = () => {
 
     const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
     
-    const rutDuplicado = usuarios.some((u: Usuario) => u.rut === form.rut);
-    const emailDuplicado = usuarios.some((u: Usuario) => u.email === form.email);
+    const rutLimpio = form.rut.replace(/\./g, '').replace('-', '');
+    const emailLimpio = form.email.trim();
+
+    const rutDuplicado = usuarios.some((u: Usuario) => u.rut.replace(/\./g, '').replace('-', '') === rutLimpio);
+    const emailDuplicado = usuarios.some((u: Usuario) => u.email === emailLimpio);
 
     if (rutDuplicado) {
       await Swal.fire("Error", "El RUT ingresado ya se encuentra registrado.", "error");
@@ -112,10 +124,10 @@ const RegistroModal = () => {
     const maxId = usuarios.reduce((max: number, u: Usuario) => u.id > max ? u.id : max, 0);
     const nuevoUsuario: Usuario = {
       id: maxId + 1,
-      rut: form.rut,
+      rut: form.rut, 
       nombre: form.nombre,
       apellido: form.apellido,
-      email: form.email,
+      email: emailLimpio, 
       password: form.password,
       direccion: form.direccion,
       region: form.region,
@@ -181,7 +193,9 @@ const RegistroModal = () => {
                 <div className="col-md-6 mb-3">
                   <label htmlFor="reg-rut" className="form-label">RUT</label>
                   <input type="text" className={`form-control ${getValidationClass('rut')}`} 
-                         id="reg-rut" maxLength={9} value={form.rut} onChange={handleChange} 
+                         id="reg-rut" 
+                         maxLength={12} 
+                         value={form.rut} onChange={handleChange} 
                          required />
                   {errors.rut && <div className="invalid-feedback">{errors.rut}</div>}
                 </div>

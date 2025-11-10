@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthProvider';
-import { fetchUsuarios } from '../../utils/api'; // Usando tu ruta
+import { fetchUsuarios } from '../../utils/api';
+import Swal from 'sweetalert2';
 
 const LoginModal = () => {
   const [email, setEmail] = useState('');
@@ -12,23 +13,45 @@ const LoginModal = () => {
     e.preventDefault();
     setError('');
 
-    // En un proyecto real, esto sería una llamada a una API (POST /login)
-    // Aquí simulamos buscando en el JSON de usuarios
-    const usuarios = await fetchUsuarios();
-    const usuarioEncontrado = usuarios.find(u => u.email === email && u.password === password);
+    try {
+      const usuarios = await fetchUsuarios();
+      const usuarioEncontrado = usuarios.find(u => u.email === email && u.password === password);
 
-    if (usuarioEncontrado) {
-      login(usuarioEncontrado);
-      // Cierra el modal (Bootstrap JS lo maneja si el botón tiene data-bs-dismiss)
-      // Ocultamos el error
-      setError('');
-      // Limpiamos formulario
-      setEmail('');
-      setPassword('');
-      // Bootstrap JS se encargará de cerrar el modal si el botón tiene data-bs-dismiss
-      // Si no, necesitaríamos manejarlo con referencias (useRef)
-    } else {
-      setError('Correo o contraseña incorrectos.');
+      if (usuarioEncontrado) {
+        // Cerrar modal manualmente
+        const modalElement = document.querySelector('#loginModal') as HTMLElement;
+        modalElement.style.display = 'none';
+        modalElement.classList.remove('show');
+        document.body.classList.remove('modal-open');
+        
+        // Remover backdrop
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        
+        // Restaurar estilos del body
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+
+        // Login y resetear campos
+        login(usuarioEncontrado);
+        setError('');
+        setEmail('');
+        setPassword('');
+
+        // Mostrar mensaje de éxito
+        await Swal.fire({
+          title: '¡Bienvenido!',
+          text: `Has iniciado sesión como ${usuarioEncontrado.nombre}`,
+          icon: 'success',
+          confirmButtonColor: '#198754'
+        });
+
+      } else {
+        setError('Correo o contraseña incorrectos.');
+      }
+    } catch (error) {
+      setError('Error al intentar iniciar sesión.');
+      console.error('Error:', error);
     }
   };
 
