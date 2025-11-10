@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { Usuario } from '../../interfaces/usuario';
+import { RolUsuario } from '../../interfaces/rolUsuario'; // <-- 1. Importar RolUsuario
 import { fetchUsuarios } from '../../utils/api';
 import ModalUsuario from '../../components/modals/ModalUsuario';
+import Swal from 'sweetalert2'; // <-- 2. Importar Swal para la alerta
 
 const AdminUsuarios = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -35,9 +37,22 @@ const AdminUsuarios = () => {
     setShowModal(true);
   };
 
-  const handleEliminar = (id: number) => {
-    if (window.confirm("¿Está seguro de que desea eliminar a este usuario?")) {
-      const nuevosUsuarios = usuarios.filter(u => u.id !== id);
+  const handleEliminar = (usuario: Usuario) => { // 3. Recibir el objeto 'usuario' completo
+    
+    // 4. Comprobar el rol
+    if (usuario.rol === RolUsuario.Admin) {
+      Swal.fire({
+        title: 'Acción Denegada',
+        text: 'No puedes eliminar a un usuario Administrador.',
+        icon: 'error',
+        confirmButtonText: 'Entendido'
+      });
+      return; // Detener la ejecución
+    }
+
+    // 5. Si no es admin, proceder con la eliminación
+    if (window.confirm(`¿Está seguro de que desea eliminar a ${usuario.nombre} ${usuario.apellido}?`)) {
+      const nuevosUsuarios = usuarios.filter(u => u.id !== usuario.id);
       setUsuarios(nuevosUsuarios);
       localStorage.setItem('usuarios', JSON.stringify(nuevosUsuarios));
     }
@@ -46,12 +61,10 @@ const AdminUsuarios = () => {
   const handleSave = (usuario: Usuario) => {
     let nuevosUsuarios;
     if (usuarioToEdit) {
-      // Modo Editar
       nuevosUsuarios = usuarios.map(u => 
         u.id === usuario.id ? { ...u, ...usuario } : u
       );
     } else {
-      // --- LÓGICA DE ID AUTO-INCREMENTAL (USUARIO) ---
       const maxId = usuarios.reduce((max, u) => u.id > max ? u.id : max, 0);
       const nuevoUsuarioConId = { ...usuario, id: maxId + 1 };
       nuevosUsuarios = [...usuarios, nuevoUsuarioConId];
@@ -80,12 +93,16 @@ const AdminUsuarios = () => {
       </div>
 
       <div className="table-responsive">
-      <div className="table-responsive">
-        <table className="table table-hover table-sm">
-          {/* ... (thead) ... */}
-          <thead>
+        <table className="table table-hover table-sm admin-table">
+          <thead className="table-light">
             <tr>
-              <th>ID</th><th>Rut</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th>
+              <th>ID</th>
+              <th>Rut</th>
+              <th>Nombre</th>
+              <th>Email</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -100,13 +117,13 @@ const AdminUsuarios = () => {
                 <td>
                   <button 
                     className="btn btn-primary btn-sm btn-editar" 
-                    onClick={() => handleEditar(user)} // <-- 6. Conectar botón
+                    onClick={() => handleEditar(user)}
                   >
                     Editar
                   </button>
                   <button 
                     className="btn btn-danger btn-sm btn-eliminar ms-1" 
-                    onClick={() => handleEliminar(user.id)}
+                    onClick={() => handleEliminar(user)} // 6. Pasar el 'user' completo
                   >
                     Eliminar
                   </button>
@@ -115,7 +132,6 @@ const AdminUsuarios = () => {
             ))}
           </tbody>
         </table>
-      </div>
       </div>
       
       <ModalUsuario 

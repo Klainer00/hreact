@@ -1,26 +1,41 @@
 import { useState, useEffect } from 'react';
-import { fetchUsuarios, fetchProductos } from '../../utils/api';
+import { fetchProductos } from '../../utils/api'; // fetchProductos está bien, no los modificamos
 import { loadPedidos } from '../../utils/storage';
+import type { Usuario } from '../../interfaces/usuario';
+import type { Producto } from '../../interfaces/producto';
+import type { Pedido } from '../../interfaces/pedido';
+
 const AdminDashboard = () => {
   const [userCount, setUserCount] = useState(0);
   const [productCount, setProductCount] = useState(0);
   const [pedidoCount, setPedidoCount] = useState(0);
 
+  // 💡 INICIO DE LA CORRECCIÓN
+  // Usamos 'useEffect' para cargar datos cuando el componente aparece.
   useEffect(() => {
     const loadStats = async () => {
-      // Cargamos todo en paralelo
-      const [users, products, pedidos] = await Promise.all([
-        fetchUsuarios(),
+      // 1. Cargamos productos y pedidos como antes
+      const [products, pedidos] = await Promise.all([
         fetchProductos(),
         loadPedidos()
       ]);
       
-      setUserCount(users.length);
+      // 2. Cargamos los usuarios DESDE LOCALSTORAGE
+      // Esta es la misma lógica que usa AdminUsuarios.tsx para obtener la lista
+      const usuariosGuardados: Usuario[] = JSON.parse(localStorage.getItem('usuarios') || '[]');
+      
+      // 3. Actualizamos los contadores
+      setUserCount(usuariosGuardados.length);
       setProductCount(products.length);
       setPedidoCount(pedidos.length);
     };
+    
     loadStats();
-  }, []);
+    
+    // Opcional: Escuchar cambios en localStorage para actualizar en tiempo real
+    // (Esto es más avanzado, por ahora lo cargamos al inicio)
+
+  }, []); // El array vacío '[]' hace que se ejecute solo una vez al montar
 
   return (
     <>

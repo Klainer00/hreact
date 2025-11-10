@@ -72,7 +72,7 @@ const RegistroModal = () => {
       if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
         edad--;
       }
-      if (edad < 18) {
+      if (edad < 18 && edad > 120) {
         err.fecha_nacimiento = "Debes ser mayor de 18 años para registrarte.";
       }
     }

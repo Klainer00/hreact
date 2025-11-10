@@ -1,10 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../../context/AuthProvider';
+import { useAuth } from '../../context/AuthProvider'; // <-- 1. Importar el hook de autenticación
 
 const AdminSidebar = () => {
-  const { usuario, logout } = useAuth();
+  const { usuario, logout } = useAuth(); // <-- 2. Obtener la función 'logout'
 
-  // 1. Aplicamos la clase 'sidebar' que definimos en el CSS
   return (
     <nav id="sidebarMenu" className="sidebar">
       <div className="position-sticky pt-3">
@@ -44,7 +43,19 @@ const AdminSidebar = () => {
           <ul className="dropdown-menu dropdown-menu-dark text-small shadow">
             <li><NavLink className="dropdown-item" to="/">Volver al sitio</NavLink></li>
             <li><hr className="dropdown-divider" /></li>
-            <li><a className="dropdown-item" href="#" onClick={logout}>Cerrar Sesión</a></li>
+            {/* 3. Conectar la función 'logout' al evento onClick */}
+            <li>
+              <a 
+                className="dropdown-item" 
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault(); // Evita que el enlace recargue la página
+                  logout();
+                }}
+              >
+                Cerrar Sesión
+              </a>
+            </li>
           </ul>
         </div>
       </div>

@@ -1,21 +1,77 @@
 import { useState, useEffect } from 'react';
 import type { Producto } from '../../interfaces/producto';
 import { fetchProductos } from '../../utils/api';
+import ModalProducto from '../../components/modals/ModalProducto'; // <-- 1. Importar el modal
+import Swal from 'sweetalert2';
 
 const AdminProductos = () => {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // --- 2. Estados para manejar el modal ---
+  const [showModal, setShowModal] = useState(false);
+  const [productoToEdit, setProductoToEdit] = useState<Producto | null>(null);
+
   useEffect(() => {
-    // Lógica de carga de productosadmin.js
-    const cargarDatos = async () => {
-      setLoading(true);
-      const data = await fetchProductos();
-      setProductos(data);
+    setLoading(true);
+    let productosGuardados = JSON.parse(localStorage.getItem('productos') || 'null');
+    
+    if (!productosGuardados) {
+      fetchProductos().then(data => {
+        localStorage.setItem('productos', JSON.stringify(data));
+        setProductos(data);
+        setLoading(false);
+      });
+    } else {
+      setProductos(productosGuardados);
       setLoading(false);
-    };
-    cargarDatos();
+    }
   }, []);
+
+  // --- 3. Funciones para abrir el modal ---
+  const handleAgregar = () => {
+    setProductoToEdit(null); // Modo "Crear"
+    setShowModal(true);
+  };
+
+  const handleEditar = (producto: Producto) => {
+    setProductoToEdit(producto); // Modo "Editar"
+    setShowModal(true);
+  };
+
+  const handleEliminar = (codigo: string) => {
+    if (window.confirm("¿Está seguro de que desea eliminar este producto?")) {
+      const nuevosProductos = productos.filter(p => p.codigo !== codigo);
+      setProductos(nuevosProductos);
+      localStorage.setItem('productos', JSON.stringify(nuevosProductos));
+    }
+  };
+
+  // --- 4. Función para guardar cambios (Crear o Editar) ---
+  const handleSave = (producto: Producto) => {
+    let nuevosProductos;
+    const productosGuardados = JSON.parse(localStorage.getItem('productos') || '[]');
+
+    if (productoToEdit) {
+      // Modo Editar
+      nuevosProductos = productosGuardados.map((p: Producto) => 
+        p.codigo === producto.codigo ? { ...p, ...producto } : p
+      );
+    } else {
+      // Modo Crear
+      // Validar que el código no exista
+      const codigoExiste = productosGuardados.some((p: Producto) => p.codigo === producto.codigo);
+      if (codigoExiste) {
+        Swal.fire("Error", "El código (SKU) de ese producto ya existe.", "error");
+        return;
+      }
+      nuevosProductos = [...productosGuardados, producto];
+    }
+    
+    setProductos(nuevosProductos);
+    localStorage.setItem('productos', JSON.stringify(nuevosProductos));
+    setShowModal(false); // Cierra el modal
+  };
 
   if (loading) {
     return <div>Cargando productos...</div>;
@@ -25,14 +81,18 @@ const AdminProductos = () => {
     <>
       <div className="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
         <h1 className="h2">Gestión de Productos</h1>
-        <button type="button" className="btn btn-sm btn-outline-success">
+        <button 
+          type="button" 
+          className="btn btn-sm btn-outline-success"
+          onClick={handleAgregar} // <-- 5. Conectar botón
+        >
           + Agregar Nuevo Producto
         </button>
       </div>
 
       <div className="table-responsive">
-        <table className="table table-hover table-sm">
-          <thead>
+        <table className="table table-hover table-sm admin-table">
+          <thead className="table-light">
             <tr>
               <th>Código</th>
               <th>Imagen</th>
@@ -47,14 +107,28 @@ const AdminProductos = () => {
               <tr key={prod.codigo}>
                 <td>{prod.codigo}</td>
                 <td>
-                  <img src={prod.imagen.startsWith('../') ? prod.imagen.substring(3) : prod.imagen} alt={prod.nombre} width="50" />
+                  <img 
+                    src={prod.imagen.startsWith('../') ? prod.imagen.substring(3) : prod.imagen} 
+                    alt={prod.nombre} 
+                    width="50" 
+                  />
                 </td>
                 <td>{prod.nombre}</td>
                 <td>${prod.precio.toLocaleString('es-CL')}</td>
                 <td>{prod.stock}</td>
                 <td>
-                  <button className="btn btn-primary btn-sm btn-editar" data-id={prod.codigo}>Editar</button>
-                  <button className="btn btn-danger btn-sm btn-eliminar ms-1" data-id={prod.codigo}>Eliminar</button>
+                  <button 
+                    className="btn btn-primary btn-sm btn-editar" 
+                    onClick={() => handleEditar(prod)} // <-- 6. Conectar botón
+                  >
+                    Editar
+                  </button>
+                  <button 
+                    className="btn btn-danger btn-sm btn-eliminar ms-1" 
+                    onClick={() => handleEliminar(prod.codigo)}
+                  >
+                    Eliminar
+                  </button>
                 </td>
               </tr>
             ))}
@@ -62,7 +136,13 @@ const AdminProductos = () => {
         </table>
       </div>
       
-      {/* Modales de Bootstrap para Agregar/Editar Producto */}
+      {/* 7. Renderizar el modal */}
+      <ModalProducto 
+        show={showModal}
+        onClose={() => setShowModal(false)}
+        onSave={handleSave}
+        productoToEdit={productoToEdit}
+      />
     </>
   );
 };
