@@ -1,4 +1,4 @@
-import { checkRut } from './checkrut'; // Importamos tu validador de RUT existente
+import { checkRut } from './checkrut';
 export interface TRegistroData {
   rut: string;
   nombre: string;
