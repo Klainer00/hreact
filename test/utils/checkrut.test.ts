@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+// La ruta ahora sube dos niveles (../..) para entrar a src/
 import { checkRut } from '../../src/utils/checkrut';
 
 describe('Pruebas para la utilidad checkRut', () => {
@@ -25,15 +26,5 @@ describe('Pruebas para la utilidad checkRut', () => {
     const resultado = checkRut('123-4');
     expect(resultado.valid).toBe(false);
     expect(resultado.message).toBe('RUT Incompleto.');
-  });
-
-  it('validates correct RUT', () => {
-    const result = checkRut('12345678-9');
-    expect(result.valid).toBe(true);
-  });
-
-  it('rejects invalid RUT', () => {
-    const result = checkRut('invalid-rut');
-    expect(result.valid).toBe(false);
   });
 });

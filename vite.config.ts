@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-   setupFiles: './test/setup.ts'
+    // Esta línea es crucial, le dice a Vitest dónde está tu setup
+    setupFiles: './test/setup.ts' 
   }
 })

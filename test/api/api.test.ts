@@ -1,9 +1,9 @@
-// test/utils/api.test.ts
-
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+// Las rutas ahora suben dos niveles (../..) para entrar a src/
 import { fetchUsuarios } from '../../src/utils/api';
 import { RolUsuario } from '../../src/interfaces/rolUsuario';
 
+// Mock de datos
 const mockDataUsuarios = {
   usuarios: [
     { id: 1, nombre: 'Juan', rol: RolUsuario.Cliente, email: 'juan@test.cl' },
@@ -11,16 +11,11 @@ const mockDataUsuarios = {
   ]
 };
 
-describe('API', () => {
-  it('performs basic test', () => {
-    expect(true).toBe(true);
-  });
-});
-
 describe('Pruebas de las utilidades de API (api.ts)', () => {
 
   beforeEach(() => {
-    vi.spyOn(window, 'fetch').mockImplementation(() =>
+    // Interceptamos fetch
+    vi.spyOn(global, 'fetch').mockImplementation(() =>
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve(mockDataUsuarios),
@@ -29,13 +24,15 @@ describe('Pruebas de las utilidades de API (api.ts)', () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks(); 
+    vi.restoreAllMocks(); // Limpiamos mocks
   });
 
   it('fetchUsuarios debe retornar una lista de usuarios mockeada', async () => {
+    // Act
     const usuarios = await fetchUsuarios();
 
-    expect(window.fetch).toHaveBeenCalledWith('/data/usuarios.json');
+    // Assert
+    expect(global.fetch).toHaveBeenCalledWith('/data/usuarios.json');
     expect(usuarios.length).toBe(2);
     expect(usuarios[0].nombre).toBe('Juan');
   });
