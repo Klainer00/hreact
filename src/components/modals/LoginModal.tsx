@@ -1,45 +1,109 @@
 import { useState, useRef } from 'react';
 import { Modal } from 'bootstrap'; 
 import { useAuth } from '../../context/AuthProvider';
-import { fetchUsuarios } from '../../utils/api';
+import { fetchUsuarios, fetchAdmins } from '../../utils/api';
+import { RolUsuario } from '../../interfaces/rolUsuario';
+import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
 const LoginModal = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
   
-  const modalRef = useRef<HTMLDivElement>(null); 
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  const closeModalAndRedirect = (usuario: any) => {
+    if (modalRef.current) {
+      const modal = Modal.getInstance(modalRef.current);
+      if (modal) {
+        // Configurar el listener para después del cierre
+        const onModalHidden = () => {
+          // Limpiar completamente el modal
+          const backdrops = document.querySelectorAll('.modal-backdrop');
+          backdrops.forEach(backdrop => backdrop.remove());
+          
+          document.body.classList.remove('modal-open');
+          document.body.style.removeProperty('overflow');
+          document.body.style.removeProperty('padding-right');
+          
+          // Mostrar mensaje y redirigir
+          setTimeout(async () => {
+            await Swal.fire({
+              title: '¡Bienvenido!',
+              text: `Has iniciado sesión como ${usuario.nombre}`,
+              icon: 'success',
+              confirmButtonColor: '#198754',
+              timer: 1500,
+              showConfirmButton: false
+            });
+            
+            // Redirigir según el rol
+            if (usuario.rol === RolUsuario.Admin || usuario.rol === RolUsuario.Vendedor) {
+              navigate('/admin/dashboard');
+            }
+          }, 100);
+          
+          // Remover el listener
+          modalRef.current?.removeEventListener('hidden.bs.modal', onModalHidden);
+        };
+        
+        modalRef.current.addEventListener('hidden.bs.modal', onModalHidden);
+        modal.hide();
+      } else {
+        // Si no hay instancia del modal, forzar limpieza
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+        
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        
+        if (usuario.rol === RolUsuario.Admin || usuario.rol === RolUsuario.Vendedor) {
+          navigate('/admin/dashboard');
+        }
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
+      let usuarioEncontrado = null;
+
+      // Buscar primero en usuarios (clientes)
       const usuarios = await fetchUsuarios();
-      const usuarioEncontrado = usuarios.find(u => u.email === email && u.password === password);
+      usuarioEncontrado = usuarios.find(u => 
+        u.email === email && 
+        u.password === password && 
+        u.rol === RolUsuario.Cliente
+      );
+
+      if (!usuarioEncontrado) {
+        // Si no se encuentra en usuarios, buscar en admins
+        const admins = await fetchAdmins();
+        usuarioEncontrado = admins.find(u => 
+          u.email === email && 
+          u.password === password && 
+          (u.rol === RolUsuario.Admin || u.rol === RolUsuario.Vendedor)
+        );
+      }
 
       if (usuarioEncontrado) {
-        
-        if (modalRef.current) {
-          const modal = Modal.getInstance(modalRef.current);
-          modal?.hide();
-        }
-        
         // Login y resetear campos
         login(usuarioEncontrado);
         setError('');
         setEmail('');
         setPassword('');
 
-        // Mostrar mensaje de éxito
-        await Swal.fire({
-          title: '¡Bienvenido!',
-          text: `Has iniciado sesión como ${usuarioEncontrado.nombre}`,
-          icon: 'success',
-          confirmButtonColor: '#198754'
-        });
+        // Cerrar modal y redirigir
+        closeModalAndRedirect(usuarioEncontrado);
 
       } else {
         setError('Correo o contraseña incorrectos.');
@@ -47,6 +111,8 @@ const LoginModal = () => {
     } catch (error) {
       setError('Error al intentar iniciar sesión.');
       console.error('Error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,6 +165,7 @@ const LoginModal = () => {
             <div className="text-center mb-4">
               <img src="/img/Logo-convertido-a-pequeño-Photoroom.png" alt="Logo" style={{ width: 150 }} />
             </div>
+
             <form id="login-form-modal" onSubmit={handleSubmit}>
               {error && <div className="alert alert-danger">{error}</div>}
               <div className="mb-3">
@@ -109,6 +176,7 @@ const LoginModal = () => {
                   id="modal-email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
                   required 
                 />
               </div>
@@ -120,9 +188,11 @@ const LoginModal = () => {
                   id="modal-password" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
                   required 
                 />
               </div>
+              
               <div className="text-center mb-3">
                 <a 
                   href="#"
@@ -134,7 +204,26 @@ const LoginModal = () => {
               </div>
 
               <div className="text-center">
-                <button type="submit" className="btn btn-success w-100">Ingresar</button>
+                <button 
+                  type="submit" 
+                  className="btn btn-success w-100"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Verificando...
+                    </>
+                  ) : (
+                    'Ingresar'
+                  )}
+                </button>
+              </div>
+              
+              <div className="text-center mt-3">
+                <small className="text-muted">
+                  El sistema detectará automáticamente tu rol y te redirigirá
+                </small>
               </div>
             </form>
           </div>

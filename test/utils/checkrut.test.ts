@@ -11,7 +11,7 @@ describe('Pruebas para la utilidad checkRut', () => {
   });
 
   it('debería validar un RUT válido con dígito verificador "K"', () => {
-    const resultado = checkRut('19816361-K');
+    const resultado = checkRut('14212856-K'); // RUT válido con K verificado
     expect(resultado.valid).toBe(true);
   });
 

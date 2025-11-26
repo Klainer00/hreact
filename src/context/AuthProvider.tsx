@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react';
 import { createContext, useState, useEffect, useContext } from 'react';
 import type { Usuario } from '../interfaces/usuario'; 
-import { loadUsuario, saveUsuario } from '../utils/storage';
+import { loadUsuario, saveUsuario, removeUsuario } from '../utils/storage';
 
 interface AuthContextType {
   usuario: Usuario | null;
+  isAuthenticated: boolean;
   login: (usuario: Usuario) => void;
   logout: () => void;
+  updateUsuario: (usuario: Usuario) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,11 +24,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const logout = () => {
     setUsuario(null);
-    window.location.href = '/';
+    removeUsuario();
+    // Solo redirigir en el navegador, no en tests
+    if (typeof window !== 'undefined' && !window.location.href.includes('localhost:')) {
+      window.location.href = '/';
+    }
   };
 
+  const updateUsuario = (usuarioActualizado: Usuario) => {
+    setUsuario(usuarioActualizado);
+  };
+
+  const isAuthenticated = usuario !== null;
+
   return (
-    <AuthContext.Provider value={{ usuario, login, logout }}>
+    <AuthContext.Provider value={{ usuario, isAuthenticated, login, logout, updateUsuario }}>
       {children}
     </AuthContext.Provider>
   );

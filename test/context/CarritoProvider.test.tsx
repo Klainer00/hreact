@@ -1,148 +1,310 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, act } from '@testing-library/react';
 import { CarritoProvider, useCarrito } from '../../src/context/CarritoProvider';
-import type { Producto } from '../../src/interfaces/producto';
 
-// --- Mocks ---
-
-vi.mock('../../src/utils/storage', () => ({
-  loadCarrito: vi.fn(() => []), 
-  saveCarrito: vi.fn(), 
-}));
-
-// Producto de prueba
-const productoManzana: Producto = {
-  codigo: 'FR001',
-  nombre: 'Manzanas Fuji',
-  precio: 1200,
-  descripcion: '', stock: 10, stock_critico: 2, categoria: 'Frutas', imagen: '/img/manzana.png'
+// Componente de prueba para usar el contexto
+const TestComponent = () => {
+  const { 
+    items, 
+    agregarItem, 
+    removerItem, 
+    actualizarCantidad, 
+    vaciarCarrito, 
+    total, 
+    cantidadTotal 
+  } = useCarrito();
+  
+  return (
+    <div>
+      <div data-testid="cantidad-total">{cantidadTotal}</div>
+      <div data-testid="total">{total}</div>
+      <div data-testid="items-count">{items.length}</div>
+      <button 
+        data-testid="agregar-btn" 
+        onClick={() => agregarItem({
+          id: 1,
+          nombre: 'Manzana',
+          precio: 1500,
+          descripcion: 'Fruta fresca',
+          imagen: 'manzana.png',
+          stock: 100,
+          categoria: 'Frutas'
+        })}
+      >
+        Agregar Manzana
+      </button>
+      <button 
+        data-testid="remover-btn" 
+        onClick={() => removerItem(1)}
+      >
+        Remover
+      </button>
+      <button 
+        data-testid="actualizar-btn" 
+        onClick={() => actualizarCantidad(1, 5)}
+      >
+        Actualizar cantidad
+      </button>
+      <button 
+        data-testid="vaciar-btn" 
+        onClick={vaciarCarrito}
+      >
+        Vaciar carrito
+      </button>
+      {items.map(item => (
+        <div key={item.id} data-testid={`item-${item.id}`}>
+          {item.nombre} - Cantidad: {item.cantidad}
+        </div>
+      ))}
+    </div>
+  );
 };
 
-const productoNaranja: Producto = {
-  codigo: 'FR002',
-  nombre: 'Naranja',
-  precio: 1000,
-  descripcion: '', stock: 10, stock_critico: 2, categoria: 'Frutas', imagen: '/img/naranja.png'
+// Mock de localStorage
+const mockLocalStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
 };
 
+Object.defineProperty(window, 'localStorage', {
+  value: mockLocalStorage,
+});
 
-// --- Pruebas ---
-
-describe('Pruebas de lógica de CarritoProvider', () => {
-
+describe('Pruebas de CarritoProvider', () => {
   beforeEach(() => {
-    vi.clearAllMocks(); // Limpia mocks
+    vi.clearAllMocks();
+    mockLocalStorage.getItem.mockReturnValue(null);
   });
 
-  const renderCarritoHook = () => {
-    return renderHook(() => useCarrito(), {
-      wrapper: CarritoProvider 
-    });
-  }
+  it('debe inicializar con carrito vacío', () => {
+    render(
+      <CarritoProvider>
+        <TestComponent />
+      </CarritoProvider>
+    );
 
-  it('debe agregar un producto nuevo al carrito', () => {
-    const { result } = renderCarritoHook();
-
-    act(() => {
-      result.current.agregarAlCarrito(productoManzana);
-    });
-
-    expect(result.current.carrito).toHaveLength(1);
-    expect(result.current.carrito[0].id).toBe('FR001');
-    expect(result.current.totalItems).toBe(1);
-    expect(result.current.total).toBe(1200);
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('0');
+    expect(screen.getByTestId('total')).toHaveTextContent('0');
+    expect(screen.getByTestId('items-count')).toHaveTextContent('0');
   });
 
-  it('debe incrementar la cantidad si el producto ya existe', () => {
-    const { result } = renderCarritoHook();
+  it('debe agregar items al carrito', async () => {
+    render(
+      <CarritoProvider>
+        <TestComponent />
+      </CarritoProvider>
+    );
 
-    // Agregamos la manzana dos veces
-    act(() => {
-      result.current.agregarAlCarrito(productoManzana);
-    });
-    act(() => {
-      result.current.agregarAlCarrito(productoManzana);
+    await act(async () => {
+      screen.getByTestId('agregar-btn').click();
     });
 
-    // El carrito solo debe tener 1 item, pero con cantidad 2
-    expect(result.current.carrito).toHaveLength(1);
-    expect(result.current.carrito[0].cantidad).toBe(2);
-    expect(result.current.totalItems).toBe(2);
-    expect(result.current.total).toBe(2400); // 1200 * 2
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('1');
+    expect(screen.getByTestId('total')).toHaveTextContent('1500');
+    expect(screen.getByTestId('items-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('item-1')).toHaveTextContent('Manzana - Cantidad: 1');
   });
 
-  it('debe disminuir la cantidad de un producto', () => {
-    const { result } = renderCarritoHook();
+  it('debe incrementar cantidad si el item ya existe', async () => {
+    render(
+      <CarritoProvider>
+        <TestComponent />
+      </CarritoProvider>
+    );
 
-    act(() => {
-      result.current.agregarAlCarrito(productoManzana);
+    // Agregar dos veces el mismo item
+    await act(async () => {
+      screen.getByTestId('agregar-btn').click();
     });
-    act(() => {
-      result.current.agregarAlCarrito(productoManzana); // Cantidad = 2
-    });
-
-    // Disminuimos
-    act(() => {
-      result.current.disminuirCantidad('FR001');
+    await act(async () => {
+      screen.getByTestId('agregar-btn').click();
     });
 
-    expect(result.current.carrito[0].cantidad).toBe(1);
-    expect(result.current.totalItems).toBe(1);
-    expect(result.current.total).toBe(1200);
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('2');
+    expect(screen.getByTestId('total')).toHaveTextContent('3000');
+    expect(screen.getByTestId('items-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('item-1')).toHaveTextContent('Manzana - Cantidad: 2');
   });
 
-  it('debe eliminar un producto si la cantidad llega a 0', () => {
-    const { result } = renderCarritoHook();
+  it('debe remover items del carrito', async () => {
+    render(
+      <CarritoProvider>
+        <TestComponent />
+      </CarritoProvider>
+    );
 
-    act(() => {
-      result.current.agregarAlCarrito(productoManzana); // Cantidad = 1
+    // Primero agregar
+    await act(async () => {
+      screen.getByTestId('agregar-btn').click();
     });
 
-    // Disminuimos
-    act(() => {
-      result.current.disminuirCantidad('FR001');
+    // Luego remover
+    await act(async () => {
+      screen.getByTestId('remover-btn').click();
     });
 
-    // El carrito debe quedar vacío
-    expect(result.current.carrito).toHaveLength(0);
-    expect(result.current.totalItems).toBe(0);
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('0');
+    expect(screen.getByTestId('total')).toHaveTextContent('0');
+    expect(screen.getByTestId('items-count')).toHaveTextContent('0');
   });
 
-  it('debe eliminar un producto usando eliminarDelCarrito', () => {
-    const { result } = renderCarritoHook();
+  it('debe actualizar la cantidad de un item', async () => {
+    render(
+      <CarritoProvider>
+        <TestComponent />
+      </CarritoProvider>
+    );
 
-    act(() => {
-      result.current.agregarAlCarrito(productoManzana);
+    // Agregar item
+    await act(async () => {
+      screen.getByTestId('agregar-btn').click();
     });
 
-    act(() => {
-      result.current.eliminarDelCarrito('FR001');
+    // Actualizar cantidad a 5
+    await act(async () => {
+      screen.getByTestId('actualizar-btn').click();
     });
 
-    expect(result.current.carrito).toHaveLength(0);
-    expect(result.current.totalItems).toBe(0);
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('5');
+    expect(screen.getByTestId('total')).toHaveTextContent('7500');
+    expect(screen.getByTestId('item-1')).toHaveTextContent('Manzana - Cantidad: 5');
   });
 
-  it('debe limpiar el carrito completo', () => {
-    const { result } = renderCarritoHook();
+  it('debe remover item si la cantidad se actualiza a 0', async () => {
+    // Componente específico para este test para evitar colisión de testids
+    const TestComponentForZero = () => {
+      const { items, agregarItem, actualizarCantidad, cantidadTotal, total } = useCarrito();
+      
+      return (
+        <div>
+          <div data-testid="cantidad-total">{cantidadTotal}</div>
+          <div data-testid="total">{total}</div>
+          <div data-testid="items-count">{items.length}</div>
+          <button 
+            data-testid="agregar-cero-test-btn" 
+            onClick={() => agregarItem({
+              id: 1, nombre: 'Manzana', precio: 1500, descripcion: 'Fruta fresca',
+              imagen: 'manzana.png', stock: 100, categoria: 'Frutas'
+            })}
+          >
+            Agregar
+          </button>
+          <button 
+            data-testid="actualizar-cero-btn" 
+            onClick={() => actualizarCantidad(1, 0)}
+          >
+            Actualizar a 0
+          </button>
+          {items.map(item => (
+            <div key={item.id} data-testid={`item-${item.id}`}>
+              {item.nombre} - Cantidad: {item.cantidad}
+            </div>
+          ))}
+        </div>
+      );
+    };
 
-    // Agregamos dos productos diferentes
-    act(() => {
-      result.current.agregarAlCarrito(productoManzana);
+    render(
+      <CarritoProvider>
+        <TestComponentForZero />
+      </CarritoProvider>
+    );
+
+    // Agregar item
+    await act(async () => {
+      screen.getByTestId('agregar-cero-test-btn').click();
     });
-    act(() => {
-      result.current.agregarAlCarrito(productoNaranja);
+
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('1');
+
+    // Actualizar cantidad a 0 (debería remover el item)
+    await act(async () => {
+      screen.getByTestId('actualizar-cero-btn').click();
     });
 
-    expect(result.current.totalItems).toBe(2);
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('0');
+    expect(screen.getByTestId('items-count')).toHaveTextContent('0');
+  });
 
-    // Limpiamos
-    act(() => {
-      result.current.limpiarCarrito();
+  it('debe vaciar el carrito completamente', async () => {
+    render(
+      <CarritoProvider>
+        <TestComponent />
+      </CarritoProvider>
+    );
+
+    // Agregar varios items
+    await act(async () => {
+      screen.getByTestId('agregar-btn').click();
+      screen.getByTestId('agregar-btn').click();
     });
 
-    expect(result.current.carrito).toHaveLength(0);
-    expect(result.current.totalItems).toBe(0);
-    expect(result.current.total).toBe(0);
+    // Vaciar carrito
+    await act(async () => {
+      screen.getByTestId('vaciar-btn').click();
+    });
+
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('0');
+    expect(screen.getByTestId('total')).toHaveTextContent('0');
+    expect(screen.getByTestId('items-count')).toHaveTextContent('0');
+  });
+
+  it('debe cargar carrito desde localStorage al inicializar', () => {
+    const carritoGuardado = [
+      {
+        id: 1,
+        nombre: 'Manzana',
+        precio: 1500,
+        descripcion: 'Fruta fresca',
+        imagen: 'manzana.png',
+        stock: 100,
+        categoria: 'Frutas',
+        cantidad: 3
+      }
+    ];
+
+    mockLocalStorage.getItem.mockReturnValue(JSON.stringify(carritoGuardado));
+
+    render(
+      <CarritoProvider>
+        <TestComponent />
+      </CarritoProvider>
+    );
+
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('3');
+    expect(screen.getByTestId('total')).toHaveTextContent('4500');
+    expect(screen.getByTestId('items-count')).toHaveTextContent('1');
+  });
+
+  it('debe manejar datos corruptos en localStorage', () => {
+    mockLocalStorage.getItem.mockReturnValue('datos-corruptos');
+    
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <CarritoProvider>
+        <TestComponent />
+      </CarritoProvider>
+    );
+
+    expect(screen.getByTestId('cantidad-total')).toHaveTextContent('0');
+    expect(consoleSpy).toHaveBeenCalled();
+    
+    consoleSpy.mockRestore();
+  });
+
+  it('debe persistir cambios en localStorage', async () => {
+    render(
+      <CarritoProvider>
+        <TestComponent />
+      </CarritoProvider>
+    );
+
+    await act(async () => {
+      screen.getByTestId('agregar-btn').click();
+    });
+
+    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('carrito', expect.any(String));
   });
 });

@@ -16,8 +16,7 @@ export function checkRut(rut: string): { valid: boolean; message: string } {
   let multiplo = 2;
 
   for (let i = 1; i <= cuerpo.length; i++) {
-    // Corregido: parseInt debe tomar el carácter, no el índice
-    const index = multiplo * parseInt(valor.charAt(cuerpo.length - i));
+    const index = multiplo * parseInt(cuerpo.charAt(cuerpo.length - i));
     suma = suma + index;
     if (multiplo < 7) { 
       multiplo = multiplo + 1; 
@@ -26,18 +25,18 @@ export function checkRut(rut: string): { valid: boolean; message: string } {
     }
   }
 
-  const dvEsperado = 11 - (suma % 11);
-  // Corregido: Maneja el caso de '0' y 'K' correctamente
-  let dvNumerico = 0;
-  if (dv === 'K') {
-    dvNumerico = 10;
-  } else if (dv === '0') {
-    dvNumerico = 11;
+  const dvCalculado = 11 - (suma % 11);
+  let dvEsperado;
+  
+  if (dvCalculado === 11) {
+    dvEsperado = '0';
+  } else if (dvCalculado === 10) {
+    dvEsperado = 'K';
   } else {
-    dvNumerico = parseInt(dv);
+    dvEsperado = dvCalculado.toString();
   }
 
-  if (dvEsperado !== dvNumerico) {
+  if (dvEsperado !== dv) {
     return { valid: false, message: "El dígito verificador es incorrecto." };
   }
 

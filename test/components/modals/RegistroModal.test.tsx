@@ -70,7 +70,7 @@ describe('Pruebas del componente RegistroModal', () => {
 
     const botonRegistro = screen.getByRole('button', { name: /Registrarse/i });
 
-    await user.type(screen.getByLabelText('RUT'), '14479742-K'); // RUT Válido
+    await user.type(screen.getByLabelText('RUT'), '11111111-1'); // RUT Válido
     await user.type(screen.getByLabelText('Nombre'), 'Brian');
     await user.type(screen.getByLabelText('Apellido'), 'Prueba');
     await user.type(screen.getByLabelText('Email'), 'test@gmail.com');
@@ -103,7 +103,7 @@ describe('Pruebas del componente RegistroModal', () => {
 
     render(<RegistroModal />);
 
-    await user.type(screen.getByLabelText('RUT'), '14479742-K');
+    await user.type(screen.getByLabelText('RUT'), '11111111-1'); // RUT Válido
     await user.type(screen.getByLabelText('Nombre'), 'Brian');
     await user.type(screen.getByLabelText('Apellido'), 'Prueba');
     await user.type(screen.getByLabelText('Email'), 'test@gmail.com'); // Duplicado

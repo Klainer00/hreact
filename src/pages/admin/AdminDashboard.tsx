@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fetchUsuarios, fetchProductos } from '../../utils/api';
 import { loadPedidos } from '../../utils/storage';
 import type { Usuario } from '../../interfaces/usuario';
@@ -8,6 +9,7 @@ const AdminDashboard = () => {
   const [userCount, setUserCount] = useState(0);
   const [productCount, setProductCount] = useState(0);
   const [pedidoCount, setPedidoCount] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadStats = async () => {
@@ -48,7 +50,11 @@ const AdminDashboard = () => {
       <div className="row g-4">
         {/* Tarjeta de Pedidos */}
         <div className="col-md-4">
-          <div className="card dashboard-card bg-primary text-white">
+          <div 
+            className="card dashboard-card bg-primary text-white" 
+            style={{ cursor: 'pointer' }}
+            onClick={() => navigate('/admin/pedidos.html')}
+          >
             <div className="card-body">
               <div>
                 <h5 className="card-title">Total Pedidos</h5>
@@ -61,7 +67,11 @@ const AdminDashboard = () => {
 
         {/* Tarjeta de Usuarios */}
         <div className="col-md-4">
-          <div className="card dashboard-card bg-success text-white">
+          <div 
+            className="card dashboard-card bg-success text-white"
+            style={{ cursor: 'pointer' }}
+            onClick={() => navigate('/admin/usuarios.html')}
+          >
             <div className="card-body">
               <div>
                 <h5 className="card-title">Total Usuarios</h5>
@@ -74,7 +84,11 @@ const AdminDashboard = () => {
 
         {/* Tarjeta de Productos */}
         <div className="col-md-4">
-          <div className="card dashboard-card bg-info text-white">
+          <div 
+            className="card dashboard-card bg-info text-white"
+            style={{ cursor: 'pointer' }}
+            onClick={() => navigate('/admin/producto.html')}
+          >
             <div className="card-body">
               <div>
                 <h5 className="card-title">Total Productos</h5>
@@ -87,7 +101,7 @@ const AdminDashboard = () => {
       </div>
 
       <h2 className="mt-5">Acciones Rápidas</h2>
-      <p>Bienvenido al panel de administración. Utiliza la barra lateral para gestionar usuarios, productos y pedidos.</p>
+      <p>Bienvenido al panel de administración. Haz clic en las tarjetas de arriba para ir directamente a cada sección o utiliza la barra lateral para navegar.</p>
     </>
   );
 };

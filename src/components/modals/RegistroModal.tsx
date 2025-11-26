@@ -98,7 +98,7 @@ const RegistroModal = () => {
     const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
     const rutLimpio = form.rut.replace(/\./g, '').replace('-', '');
     const emailLimpio = form.email.trim();
-    const rutDuplicado = usuarios.some((u: Usuario) => u.rut.replace(/\./g, '').replace('-', '') === rutLimpio);
+    const rutDuplicado = usuarios.some((u: Usuario) => u.rut && u.rut.replace(/\./g, '').replace('-', '') === rutLimpio);
     const emailDuplicado = usuarios.some((u: Usuario) => u.email === emailLimpio);
 
     if (rutDuplicado) {
@@ -130,42 +130,25 @@ const RegistroModal = () => {
       usuarios.push(nuevoUsuario);
       localStorage.setItem('usuarios', JSON.stringify(usuarios));
 
+      // Cerrar modal si existe
       const modalElement = modalRef.current;
-      if (!modalElement) return;
-
-      const modalInstance = Modal.getInstance(modalElement);
-      
-      if (modalInstance) {
-        // Definir qué hacer después de que el modal se cierre
-        const onModalHidden = async () => {
-          // Limpiar cualquier backdrop residual
-          const backdrops = document.querySelectorAll('.modal-backdrop');
-          backdrops.forEach(backdrop => backdrop.remove());
-          
-          // Limpiar clases del body
-          document.body.classList.remove('modal-open');
-          document.body.style.removeProperty('overflow');
-          document.body.style.removeProperty('padding-right');
-          
-          // Mostrar mensaje de éxito
-          await Swal.fire({
-            title: "¡Éxito!",
-            text: "Usuario registrado con éxito. Se iniciará tu sesión.",
-            icon: "success",
-            allowOutsideClick: false
-          });
-          
-          // Hacer login
-          login(nuevoUsuario);
-          
-          // Remover el listener
-          modalElement.removeEventListener('hidden.bs.modal', onModalHidden);
-        };
-
-        // Suscribirse al evento y cerrar el modal
-        modalElement.addEventListener('hidden.bs.modal', onModalHidden);
-        modalInstance.hide();
+      if (modalElement) {
+        const modalInstance = Modal.getInstance(modalElement);
+        if (modalInstance) {
+          modalInstance.hide();
+        }
       }
+
+      // Hacer login inmediatamente
+      login(nuevoUsuario);
+
+      // Mostrar mensaje de éxito
+      await Swal.fire({
+        title: "¡Éxito!",
+        text: "Usuario registrado con éxito. Se iniciará tu sesión.",
+        icon: "success",
+        allowOutsideClick: false
+      });
 
     } catch (error) {
       console.error('Error:', error);

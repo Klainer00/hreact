@@ -23,3 +23,22 @@ export const confirmDelete = async (itemName: string = 'elemento') => {
   }
   return false;
 };
+
+export const showDeleteConfirmation = async (tipo: string, nombre: string): Promise<boolean> => {
+  try {
+    const result = await Swal.fire({
+      title: '¿Estás seguro?',
+      text: `¿Deseas eliminar el ${tipo} "${nombre}"? Esta acción no se puede deshacer.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    return result.isConfirmed;
+  } catch (error) {
+    return false;
+  }
+};

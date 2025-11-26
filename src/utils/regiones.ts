@@ -18,3 +18,21 @@ export const regionesComunas = {
     { "region": "Magallanes y de la Antártica Chilena", "comunas": ["Punta Arenas", "Laguna Blanca", "Río Verde", "San Gregorio", "Cabo de Hornos (Ex Navarino)", "Antártica", "Porvenir", "Primavera", "Timaukel", "Natales", "Torres del Paine"] }
   ]
 };
+
+// Exportar array de regiones para las pruebas
+export const regiones = regionesComunas.regiones.map(r => r.region === "Metropolitana de Santiago" ? "Región Metropolitana de Santiago" : `Región de ${r.region}`);
+
+// Función para obtener comunas por región
+export function obtenerComunasPorRegion(regionNombre: string): string[] {
+  // Manejar caso especial de Región Metropolitana
+  if (regionNombre === 'Región Metropolitana de Santiago') {
+    const regionEncontrada = regionesComunas.regiones.find(r => r.region === 'Metropolitana de Santiago');
+    return regionEncontrada ? regionEncontrada.comunas : [];
+  }
+  
+  // Quitar el prefijo "Región de" si existe
+  const regionSinPrefijo = regionNombre.replace(/^Región de /, '');
+  
+  const regionEncontrada = regionesComunas.regiones.find(r => r.region === regionSinPrefijo);
+  return regionEncontrada ? regionEncontrada.comunas : [];
+}

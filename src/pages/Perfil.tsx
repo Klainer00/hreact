@@ -1,59 +1,314 @@
-// src/pages/Perfil.tsx (Método Recomendado)
-
-import { useAuth } from '../context/AuthProvider'; // <-- Usamos el hook
+import { useState } from 'react';
+import { useAuth } from '../context/AuthProvider';
 import { Navigate } from 'react-router-dom';
+import { loadPedidos } from '../utils/storage';
+import type { Usuario } from '../interfaces/usuario';
+import Swal from 'sweetalert2';
 
 const Perfil = () => {
-  // 1. Obtenemos el usuario desde el contexto
-  const { usuario } = useAuth(); //
-
+  const { usuario, updateUsuario } = useAuth();
+  const [editMode, setEditMode] = useState(false);
+  const [formData, setFormData] = useState<Partial<Usuario>>(usuario || {});
+  const [activeTab, setActiveTab] = useState('perfil'); // 'perfil' o 'pedidos'
 
   if (!usuario) {
     return <Navigate to="/index.html" replace />;
   }
 
-  // 3. Mostramos los datos (el JSX es idéntico)
+  // Obtener pedidos del usuario
+  const pedidosUsuario = loadPedidos().filter(pedido => pedido.cliente.email === usuario.email);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSave = () => {
+    try {
+      // Actualizar en localStorage
+      const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+      const updatedUsuarios = usuarios.map((u: any) => 
+        u.id === usuario.id ? { ...u, ...formData } : u
+      );
+      localStorage.setItem('usuarios', JSON.stringify(updatedUsuarios));
+      
+      // Actualizar el contexto
+      updateUsuario({ ...usuario, ...formData } as Usuario);
+      
+      setEditMode(false);
+      Swal.fire({
+        title: "Perfil actualizado",
+        text: "Tu perfil ha sido actualizado exitosamente.",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      Swal.fire({
+        title: "Error",
+        text: "No se pudo actualizar el perfil. Intenta nuevamente.",
+        icon: "error"
+      });
+    }
+  };
+
+  const handleCancel = () => {
+    setFormData(usuario);
+    setEditMode(false);
+  };
+
   return (
     <main className="container my-5">
       <div className="row">
-        <div className="col-md-8 offset-md-2">
-          <h2 className="text-center mb-4">Mi Perfil</h2>
-          <div className="card shadow-sm">
-            <div className="card-body p-4">
-              
-              <div className="mb-3">
-                <strong>Nombre:</strong>
-                <p className="form-control-plaintext">{usuario.nombre} {usuario.apellido}</p>
-              </div>
-
-              <div className="mb-3">
-                <strong>Email:</strong>
-                <p className="form-control-plaintext">{usuario.email}</p>
-              </div>
-
-              <div className="mb-3">
-                <strong>RUT:</strong>
-                <p className="form-control-plaintext">{usuario.rut}</p>
-              </div>
-              
-              <div className="mb-3">
-                <strong>Dirección:</strong>
-                <p className="form-control-plaintext">
-                  {usuario.direccion || 'No especificada'}, {usuario.comuna}, {usuario.region}
-                </p>
-              </div>
-
-              <div className="mb-3">
-                <strong>Fecha de Nacimiento:</strong>
-                <p className="form-control-plaintext">{usuario.fecha_nacimiento || 'No especificada'}</p>
-              </div>
-
-              <button className="btn btn-outline-primary" disabled>
-                Editar Perfil (Próximamente)
+        <div className="col-md-10 offset-md-1">
+          <h2 className="text-center mb-4">Mi Cuenta</h2>
+          
+          {/* Navegación por pestañas */}
+          <ul className="nav nav-tabs mb-4">
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${activeTab === 'perfil' ? 'active' : ''}`}
+                onClick={() => setActiveTab('perfil')}
+              >
+                Mi Perfil
               </button>
+            </li>
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${activeTab === 'pedidos' ? 'active' : ''}`}
+                onClick={() => setActiveTab('pedidos')}
+              >
+                Mis Pedidos ({pedidosUsuario.length})
+              </button>
+            </li>
+          </ul>
 
+          {/* Contenido de pestañas */}
+          {activeTab === 'perfil' && (
+            <div className="card shadow-sm">
+              <div className="card-body p-4">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h5 className="card-title mb-0">Información Personal</h5>
+                  {!editMode ? (
+                    <button 
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setEditMode(true)}
+                    >
+                      Editar Perfil
+                    </button>
+                  ) : (
+                    <div>
+                      <button 
+                        className="btn btn-success btn-sm me-2"
+                        onClick={handleSave}
+                      >
+                        Guardar
+                      </button>
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleCancel}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Formulario de perfil */}
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <strong>Nombre:</strong>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          className="form-control"
+                          name="nombre"
+                          value={formData.nombre || ''}
+                          onChange={handleInputChange}
+                        />
+                      ) : (
+                        <p className="form-control-plaintext">{usuario.nombre}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <strong>Apellido:</strong>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          className="form-control"
+                          name="apellido"
+                          value={formData.apellido || ''}
+                          onChange={handleInputChange}
+                        />
+                      ) : (
+                        <p className="form-control-plaintext">{usuario.apellido}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <strong>Email:</strong>
+                  <p className="form-control-plaintext">{usuario.email}</p>
+                  <small className="text-muted">El email no se puede modificar</small>
+                </div>
+
+                <div className="mb-3">
+                  <strong>RUT:</strong>
+                  <p className="form-control-plaintext">{usuario.rut}</p>
+                  <small className="text-muted">El RUT no se puede modificar</small>
+                </div>
+                
+                <div className="mb-3">
+                  <strong>Dirección:</strong>
+                  {editMode ? (
+                    <input
+                      type="text"
+                      className="form-control"
+                      name="direccion"
+                      value={formData.direccion || ''}
+                      onChange={handleInputChange}
+                      placeholder="Ingresa tu dirección"
+                    />
+                  ) : (
+                    <p className="form-control-plaintext">
+                      {usuario.direccion || 'No especificada'}
+                    </p>
+                  )}
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <strong>Comuna:</strong>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          className="form-control"
+                          name="comuna"
+                          value={formData.comuna || ''}
+                          onChange={handleInputChange}
+                          placeholder="Comuna"
+                        />
+                      ) : (
+                        <p className="form-control-plaintext">{usuario.comuna}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <strong>Región:</strong>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          className="form-control"
+                          name="region"
+                          value={formData.region || ''}
+                          onChange={handleInputChange}
+                          placeholder="Región"
+                        />
+                      ) : (
+                        <p className="form-control-plaintext">{usuario.region}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <strong>Fecha de Nacimiento:</strong>
+                  {editMode ? (
+                    <input
+                      type="date"
+                      className="form-control"
+                      name="fecha_nacimiento"
+                      value={formData.fecha_nacimiento || ''}
+                      onChange={handleInputChange}
+                    />
+                  ) : (
+                    <p className="form-control-plaintext">{usuario.fecha_nacimiento || 'No especificada'}</p>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Pestaña de Pedidos */}
+          {activeTab === 'pedidos' && (
+            <div className="card shadow-sm">
+              <div className="card-body p-4">
+                <h5 className="card-title mb-3">Mis Pedidos</h5>
+                
+                {pedidosUsuario.length === 0 ? (
+                  <div className="text-center py-5">
+                    <p className="text-muted">Aún no has realizado ningún pedido.</p>
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => window.location.href = '/productos.html'}
+                    >
+                      Ir a Productos
+                    </button>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="table table-hover">
+                      <thead>
+                        <tr>
+                          <th>Pedido #</th>
+                          <th>Fecha</th>
+                          <th>Items</th>
+                          <th>Total</th>
+                          <th>Detalles</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pedidosUsuario.map(pedido => (
+                          <tr key={pedido.id}>
+                            <td>#{pedido.id}</td>
+                            <td>{new Date(pedido.fecha).toLocaleDateString()}</td>
+                            <td>{pedido.items.length} productos</td>
+                            <td>${pedido.total.toLocaleString('es-CL')}</td>
+                            <td>
+                              <button 
+                                className="btn btn-outline-primary btn-sm"
+                                onClick={() => {
+                                  Swal.fire({
+                                    title: `Pedido #${pedido.id}`,
+                                    html: `
+                                      <div class="text-start">
+                                        <p><strong>Fecha:</strong> ${new Date(pedido.fecha).toLocaleDateString()}</p>
+                                        <p><strong>Productos:</strong></p>
+                                        <ul>
+                                          ${pedido.items.map(item => 
+                                            `<li>${item.nombre} x${item.cantidad} - $${(item.precio * item.cantidad).toLocaleString('es-CL')}</li>`
+                                          ).join('')}
+                                        </ul>
+                                        <p><strong>Total:</strong> $${pedido.total.toLocaleString('es-CL')}</p>
+                                      </div>
+                                    `,
+                                    confirmButtonText: "Cerrar"
+                                  });
+                                }}
+                              >
+                                Ver Detalle
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>

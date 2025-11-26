@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Producto } from '../../interfaces/producto';
 import { fetchProductos } from '../../utils/api';
+import { loadPedidos } from '../../utils/storage'; // Importar función para cargar pedidos
 import ModalProducto from '../../components/modals/ModalProducto'; // <-- 1. Importar el modal
 import Swal from 'sweetalert2';
 
@@ -40,11 +41,46 @@ const AdminProductos = () => {
   };
 
   const handleEliminar = (codigo: string) => {
-    if (window.confirm("¿Está seguro de que desea eliminar este producto?")) {
-      const nuevosProductos = productos.filter(p => p.codigo !== codigo);
-      setProductos(nuevosProductos);
-      localStorage.setItem('productos', JSON.stringify(nuevosProductos));
+    // Verificar si el producto está en algún pedido
+    const pedidos = loadPedidos();
+    const productoEnPedido = pedidos.some(pedido => 
+      pedido.items.some(item => item.id === codigo)
+    );
+
+    if (productoEnPedido) {
+      Swal.fire({
+        title: "No se puede eliminar",
+        text: "Este producto no puede ser eliminado porque está asociado a uno o más pedidos.",
+        icon: "warning",
+        confirmButtonText: "Entendido"
+      });
+      return;
     }
+
+    Swal.fire({
+      title: "¿Está seguro?",
+      text: "¿Desea eliminar este producto? Esta acción no se puede deshacer.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar"
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const nuevosProductos = productos.filter(p => p.codigo !== codigo);
+        setProductos(nuevosProductos);
+        localStorage.setItem('productos', JSON.stringify(nuevosProductos));
+        
+        Swal.fire({
+          title: "Eliminado",
+          text: "El producto ha sido eliminado exitosamente.",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
+    });
   };
 
   // --- 4. Función para guardar cambios (Crear o Editar) ---

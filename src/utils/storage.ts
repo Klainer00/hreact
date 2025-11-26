@@ -1,9 +1,37 @@
 import type { Usuario } from '../interfaces/usuario';
 import type { ItemCarrito } from '../interfaces/itemCarrito';
 
-
 const USUARIO_KEY = 'usuarioLogueado';
 const CARRITO_KEY = 'carrito';
+
+// --- Funciones genéricas para localStorage ---
+export function saveToLocalStorage(key: string, data: any): void {
+  try {
+    const serializedData = JSON.stringify(data);
+    localStorage.setItem(key, serializedData);
+  } catch (e) {
+    console.error("Error guardando en localStorage", e);
+  }
+}
+
+export function getFromLocalStorage(key: string): any {
+  try {
+    const serializedData = localStorage.getItem(key);
+    if (serializedData === null) return null;
+    return JSON.parse(serializedData);
+  } catch (e) {
+    console.error("Error recuperando de localStorage", e);
+    return null;
+  }
+}
+
+export function removeFromLocalStorage(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch (e) {
+    console.error("Error eliminando de localStorage", e);
+  }
+}
 
 // --- Manejo de Usuario ---
 export function loadUsuario(): Usuario | null {
@@ -12,11 +40,10 @@ export function loadUsuario(): Usuario | null {
     if (serialisedState === null) return null;
     return JSON.parse(serialisedState) as Usuario;
   } catch (e) {
-    console.warn("Error cargando usuario de localStorage", e);
+    console.error("Error cargando usuario de localStorage", e);
     return null;
   }
 }
-
 
 export function saveUsuario(usuario: Usuario | null): void {
   try {
@@ -27,7 +54,15 @@ export function saveUsuario(usuario: Usuario | null): void {
       localStorage.setItem(USUARIO_KEY, serialisedState);
     }
   } catch (e) {
-    console.warn("Error guardando usuario en localStorage", e);
+    console.error("Error guardando usuario en localStorage", e);
+  }
+}
+
+export function removeUsuario(): void {
+  try {
+    localStorage.removeItem(USUARIO_KEY);
+  } catch (e) {
+    console.error("Error eliminando usuario de localStorage", e);
   }
 }
 
@@ -36,14 +71,21 @@ export function loadCarrito(): ItemCarrito[] {
   try {
     const raw = localStorage.getItem(CARRITO_KEY);
     return raw ? (JSON.parse(raw) as ItemCarrito[]) : [];
-  } catch {
+  } catch (e) {
+    console.error("Error cargando carrito de localStorage", e);
     return [];
   }
 }
 
 export function saveCarrito(carrito: ItemCarrito[]): void {
-  localStorage.setItem(CARRITO_KEY, JSON.stringify(carrito));
+  try {
+    const serialisedState = JSON.stringify(carrito);
+    localStorage.setItem(CARRITO_KEY, serialisedState);
+  } catch (e) {
+    console.error("Error guardando carrito en localStorage", e);
+  }
 }
+
 import type { Pedido } from '../interfaces/pedido'; 
 
 const PEDIDOS_KEY = 'pedidos';
