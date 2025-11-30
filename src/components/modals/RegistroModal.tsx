@@ -4,8 +4,6 @@ import { useAuth } from '../../context/AuthProvider';
 import { regionesComunas } from '../../utils/regiones';
 import { checkRut } from '../../utils/checkrut';
 import { formatRutOnType } from '../../utils/formatRut'; 
-import type { Usuario } from '../../interfaces/usuario';
-import { RolUsuario } from '../../interfaces/rolUsuario';
 import Swal from 'sweetalert2';
 
 const RegistroModal = () => {
@@ -95,64 +93,59 @@ const RegistroModal = () => {
       return;
     }
 
-    const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
-    const rutLimpio = form.rut.replace(/\./g, '').replace('-', '');
-    const emailLimpio = form.email.trim();
-    const rutDuplicado = usuarios.some((u: Usuario) => u.rut && u.rut.replace(/\./g, '').replace('-', '') === rutLimpio);
-    const emailDuplicado = usuarios.some((u: Usuario) => u.email === emailLimpio);
-
-    if (rutDuplicado) {
-      await Swal.fire("Error", "El RUT ingresado ya se encuentra registrado.", "error");
-      return;
-    }
-    if (emailDuplicado) {
-      await Swal.fire("Error", "El Email ingresado ya se encuentra registrado.", "error");
-      return;
-    }
-
-    const maxId = usuarios.reduce((max: number, u: Usuario) => u.id > max ? u.id : max, 0);
-    const nuevoUsuario: Usuario = {
-      id: maxId + 1,
-      rut: form.rut,
-      nombre: form.nombre,
-      apellido: form.apellido,
-      email: emailLimpio,
-      password: form.password,
-      direccion: form.direccion,
-      region: form.region,
-      comuna: form.comuna,
-      fecha_nacimiento: form.fecha_nacimiento,
-      rol: RolUsuario.Cliente,
-      estado: 'Activo',
-    };
+    const urlRegistro = 'http://localhost:8180/api/auth/register'; 
+    const emailLimpio = form.email.trim( );
 
     try {
-      usuarios.push(nuevoUsuario);
-      localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        const response = await fetch(urlRegistro, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                rut: form.rut,
+                nombre: form.nombre,
+                apellido: form.apellido,
+                email: emailLimpio,
+                password: form.password,
+                direccion: form.direccion,
+                region: form.region,
+                comuna: form.comuna,
+                fechaNacimiento: form.fecha_nacimiento, 
+            }),
+        });
 
-      // Cerrar modal si existe
-      const modalElement = modalRef.current;
-      if (modalElement) {
-        const modalInstance = Modal.getInstance(modalElement);
-        if (modalInstance) {
-          modalInstance.hide();
+        const data = await response.json();
+
+        if (response.ok) {
+            const modalElement = modalRef.current;
+            if (modalElement) {
+                const modalInstance = Modal.getInstance(modalElement);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+
+            await Swal.fire({
+                title: "¡Éxito!",
+                text: "Usuario registrado con éxito.",
+                icon: "success",
+                allowOutsideClick: false
+            });
+            
+             if (data.user) {
+                 login(data.user); 
+            }
+
+        } else if (response.status === 409) {
+            await Swal.fire("Error", "El usuario ya se encuentra registrado.", "error");
+        } else {
+            await Swal.fire("Error", data.message || "Ocurrió un error en el registro.", "error");
         }
-      }
-
-      // Hacer login inmediatamente
-      login(nuevoUsuario);
-
-      // Mostrar mensaje de éxito
-      await Swal.fire({
-        title: "¡Éxito!",
-        text: "Usuario registrado con éxito. Se iniciará tu sesión.",
-        icon: "success",
-        allowOutsideClick: false
-      });
 
     } catch (error) {
-      console.error('Error:', error);
-      await Swal.fire("Error", "Ocurrió un error al procesar el registro.", "error");
+        console.error('Error de conexión:', error);
+        await Swal.fire("Error", "No se pudo conectar con el microservicio. Asegúrate de que esté corriendo en http://localhost:8180.", "error" );
     }
   };
 
