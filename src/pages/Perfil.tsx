@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthProvider';
 import { Navigate } from 'react-router-dom';
 import { loadPedidos } from '../utils/storage';
+import { actualizarUsuario } from '../utils/api';
 import type { Usuario } from '../interfaces/usuario';
 import Swal from 'sweetalert2';
 
@@ -28,28 +29,46 @@ const Perfil = () => {
 
   const handleSave = () => {
     try {
-      // Actualizar en localStorage
-      const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
-      const updatedUsuarios = usuarios.map((u: any) => 
-        u.id === usuario.id ? { ...u, ...formData } : u
-      );
-      localStorage.setItem('usuarios', JSON.stringify(updatedUsuarios));
+      // Preparar datos para actualizar
+      const usuarioActualizado = { ...usuario, ...formData } as Usuario;
       
-      // Actualizar el contexto
-      updateUsuario({ ...usuario, ...formData } as Usuario);
-      
-      setEditMode(false);
-      Swal.fire({
-        title: "Perfil actualizado",
-        text: "Tu perfil ha sido actualizado exitosamente.",
-        icon: "success",
-        timer: 2000,
-        showConfirmButton: false
+      // Actualizar en el backend
+      actualizarUsuario(usuario.id, usuarioActualizado).then((res) => {
+        if (res.success) {
+          // Actualizar en localStorage
+          const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+          const updatedUsuarios = usuarios.map((u: any) => 
+            u.id === usuario.id ? usuarioActualizado : u
+          );
+          localStorage.setItem('usuarios', JSON.stringify(updatedUsuarios));
+          
+          // Actualizar el contexto
+          updateUsuario(usuarioActualizado);
+          
+          setEditMode(false);
+          Swal.fire({
+            title: "Perfil actualizado",
+            text: "Tu perfil ha sido actualizado exitosamente.",
+            icon: "success",
+            timer: 2000,
+            showConfirmButton: false
+          });
+        } else {
+          throw new Error(res.message || 'Error al actualizar');
+        }
+      }).catch((error: any) => {
+        console.error('Error al actualizar perfil:', error);
+        Swal.fire({
+          title: "Error",
+          text: error.message || "No se pudo actualizar el perfil. Intenta nuevamente.",
+          icon: "error"
+        });
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error:', error);
       Swal.fire({
         title: "Error",
-        text: "No se pudo actualizar el perfil. Intenta nuevamente.",
+        text: error.message || "No se pudo actualizar el perfil. Intenta nuevamente.",
         icon: "error"
       });
     }
@@ -63,7 +82,7 @@ const Perfil = () => {
   return (
     <main className="container my-5">
       <div className="row">
-        <div className="col-md-10 offset-md-1">
+        <div className="col-12">
           <h2 className="text-center mb-4">Mi Cuenta</h2>
           
           {/* Navegación por pestañas */}
@@ -88,10 +107,10 @@ const Perfil = () => {
 
           {/* Contenido de pestañas */}
           {activeTab === 'perfil' && (
-            <div className="card shadow-sm">
-              <div className="card-body p-4">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h5 className="card-title mb-0">Información Personal</h5>
+            <div className="card shadow-sm border-0">
+              <div className="card-body p-3 p-sm-4 p-md-5">
+                <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-4 gap-3">
+                  <h5 className="card-title mb-0 fs-5">Información Personal</h5>
                   {!editMode ? (
                     <button 
                       className="btn btn-primary btn-sm"
@@ -100,9 +119,9 @@ const Perfil = () => {
                       Editar Perfil
                     </button>
                   ) : (
-                    <div>
+                    <div className="d-flex gap-2 flex-wrap">
                       <button 
-                        className="btn btn-success btn-sm me-2"
+                        className="btn btn-success btn-sm"
                         onClick={handleSave}
                       >
                         Guardar
@@ -117,77 +136,76 @@ const Perfil = () => {
                   )}
                 </div>
 
+                <hr className="my-4" />
+
                 {/* Formulario de perfil */}
-                <div className="row">
-                  <div className="col-md-6">
+                <div className="row g-3 g-md-4">
+                  <div className="col-12 col-sm-6">
                     <div className="mb-3">
-                      <strong>Nombre:</strong>
-                      {editMode ? (
-                        <input
-                          type="text"
-                          className="form-control"
-                          name="nombre"
-                          value={formData.nombre || ''}
-                          onChange={handleInputChange}
-                        />
-                      ) : (
-                        <p className="form-control-plaintext">{usuario.nombre}</p>
-                      )}
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Nombre</strong>
+                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.nombre || '-'}</p>
                     </div>
                   </div>
                   
-                  <div className="col-md-6">
+                  <div className="col-12 col-sm-6">
                     <div className="mb-3">
-                      <strong>Apellido:</strong>
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Apellido</strong>
+                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.apellido || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row g-3 g-md-4 mt-2">
+                  <div className="col-12 col-sm-6">
+                    <div className="mb-3">
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Email</strong>
+                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.email || '-'}</p>
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-sm-6">
+                    <div className="mb-3">
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>RUT</strong>
+                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.rut || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row g-3 g-md-4 mt-2">
+                  <div className="col-12 col-sm-6">
+                    <div className="mb-3">
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Fecha de Nacimiento</strong>
+                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>
+                        {usuario.fecha_nacimiento ? new Date(usuario.fecha_nacimiento).toLocaleDateString('es-CL') : '-'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="col-12 col-sm-6">
+                    <div className="mb-3">
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Dirección</strong>
                       {editMode ? (
                         <input
                           type="text"
                           className="form-control"
-                          name="apellido"
-                          value={formData.apellido || ''}
+                          name="direccion"
+                          value={formData.direccion || ''}
                           onChange={handleInputChange}
+                          placeholder="Ingresa tu dirección"
                         />
                       ) : (
-                        <p className="form-control-plaintext">{usuario.apellido}</p>
+                        <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>
+                          {usuario.direccion || '-'}
+                        </p>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="mb-3">
-                  <strong>Email:</strong>
-                  <p className="form-control-plaintext">{usuario.email}</p>
-                  <small className="text-muted">El email no se puede modificar</small>
-                </div>
-
-                <div className="mb-3">
-                  <strong>RUT:</strong>
-                  <p className="form-control-plaintext">{usuario.rut}</p>
-                  <small className="text-muted">El RUT no se puede modificar</small>
-                </div>
-                
-                <div className="mb-3">
-                  <strong>Dirección:</strong>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      className="form-control"
-                      name="direccion"
-                      value={formData.direccion || ''}
-                      onChange={handleInputChange}
-                      placeholder="Ingresa tu dirección"
-                    />
-                  ) : (
-                    <p className="form-control-plaintext">
-                      {usuario.direccion || 'No especificada'}
-                    </p>
-                  )}
-                </div>
-
-                <div className="row">
-                  <div className="col-md-6">
+                <div className="row g-3 g-md-4 mt-2">
+                  <div className="col-12 col-sm-6">
                     <div className="mb-3">
-                      <strong>Comuna:</strong>
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Comuna</strong>
                       {editMode ? (
                         <input
                           type="text"
@@ -198,14 +216,14 @@ const Perfil = () => {
                           placeholder="Comuna"
                         />
                       ) : (
-                        <p className="form-control-plaintext">{usuario.comuna}</p>
+                        <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.comuna || '-'}</p>
                       )}
                     </div>
                   </div>
                   
-                  <div className="col-md-6">
+                  <div className="col-12 col-sm-6">
                     <div className="mb-3">
-                      <strong>Región:</strong>
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Región</strong>
                       {editMode ? (
                         <input
                           type="text"
@@ -216,25 +234,10 @@ const Perfil = () => {
                           placeholder="Región"
                         />
                       ) : (
-                        <p className="form-control-plaintext">{usuario.region}</p>
+                        <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.region || '-'}</p>
                       )}
                     </div>
                   </div>
-                </div>
-
-                <div className="mb-3">
-                  <strong>Fecha de Nacimiento:</strong>
-                  {editMode ? (
-                    <input
-                      type="date"
-                      className="form-control"
-                      name="fecha_nacimiento"
-                      value={formData.fecha_nacimiento || ''}
-                      onChange={handleInputChange}
-                    />
-                  ) : (
-                    <p className="form-control-plaintext">{usuario.fecha_nacimiento || 'No especificada'}</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -242,13 +245,13 @@ const Perfil = () => {
 
           {/* Pestaña de Pedidos */}
           {activeTab === 'pedidos' && (
-            <div className="card shadow-sm">
-              <div className="card-body p-4">
-                <h5 className="card-title mb-3">Mis Pedidos</h5>
+            <div className="card shadow-sm border-0">
+              <div className="card-body p-3 p-sm-4 p-md-5">
+                <h5 className="card-title mb-4 fs-5">Mis Pedidos</h5>
                 
                 {pedidosUsuario.length === 0 ? (
                   <div className="text-center py-5">
-                    <p className="text-muted">Aún no has realizado ningún pedido.</p>
+                    <p className="text-muted mb-3">Aún no has realizado ningún pedido.</p>
                     <button 
                       className="btn btn-primary"
                       onClick={() => window.location.href = '/productos.html'}

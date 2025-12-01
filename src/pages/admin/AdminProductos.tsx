@@ -14,19 +14,37 @@ const AdminProductos = () => {
   const [productoToEdit, setProductoToEdit] = useState<Producto | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    let productosGuardados = JSON.parse(localStorage.getItem('productos') || 'null');
-    
-    if (!productosGuardados) {
-      fetchProductos().then(data => {
+    const loadProductos = async () => {
+      try {
+        setLoading(true);
+        console.log('📥 Cargando productos desde la API...');
+        
+        // Cargar desde la API
+        const data = await fetchProductos();
+        console.log('✅ Productos cargados:', data);
+        
+        // Guardar en localStorage también para offline
         localStorage.setItem('productos', JSON.stringify(data));
+        
         setProductos(data);
+      } catch (error) {
+        console.error('❌ Error cargando productos:', error);
+        
+        // Si hay error, intentar cargar desde localStorage
+        const productosGuardados = JSON.parse(localStorage.getItem('productos') || '[]');
+        setProductos(productosGuardados);
+        
+        await Swal.fire({
+          title: 'Error',
+          text: 'No se pudieron cargar los productos desde la API. Mostrando datos locales.',
+          icon: 'warning'
+        });
+      } finally {
         setLoading(false);
-      });
-    } else {
-      setProductos(productosGuardados);
-      setLoading(false);
-    }
+      }
+    };
+    
+    loadProductos();
   }, []);
 
   // --- 3. Funciones para abrir el modal ---

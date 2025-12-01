@@ -9,8 +9,18 @@ const AdminLogin = () => {
   const { usuario } = useAuth();
 
   useEffect(() => {
+    // Validar si es admin o vendedor
+    const esAdmin = usuario && (
+      usuario.rol === RolUsuario.Admin || 
+      usuario.rol === 'ADMIN' || 
+      usuario.rol === 'Administrador' ||
+      usuario.rol === RolUsuario.Vendedor || 
+      usuario.rol === 'VENDEDOR' || 
+      usuario.rol === 'Vendedor'
+    );
+
     // Si ya está autenticado como admin o vendedor, redirigir al dashboard
-    if (usuario && (usuario.rol === RolUsuario.Admin || usuario.rol === RolUsuario.Vendedor)) {
+    if (esAdmin) {
       navigate('/admin/dashboard');
       return;
     }
@@ -32,7 +42,17 @@ const AdminLogin = () => {
         // Redirigir a home cuando se cierre el modal sin login exitoso
         const handleModalHide = () => {
           setTimeout(() => {
-            if (!usuario || (usuario.rol !== RolUsuario.Admin && usuario.rol !== RolUsuario.Vendedor)) {
+            // Validar nuevamente si es admin o vendedor
+            const esAdminNow = usuario && (
+              usuario.rol === RolUsuario.Admin || 
+              usuario.rol === 'ADMIN' || 
+              usuario.rol === 'Administrador' ||
+              usuario.rol === RolUsuario.Vendedor || 
+              usuario.rol === 'VENDEDOR' || 
+              usuario.rol === 'Vendedor'
+            );
+
+            if (!esAdminNow) {
               // Limpiar completamente antes de redirigir
               const backdrops = document.querySelectorAll('.modal-backdrop');
               backdrops.forEach(backdrop => backdrop.remove());

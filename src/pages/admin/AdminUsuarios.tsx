@@ -11,20 +11,49 @@ const AdminUsuarios = () => {
   const [showModal, setShowModal] = useState(false);
   const [usuarioToEdit, setUsuarioToEdit] = useState<Usuario | null>(null);
 
-  useEffect(() => {
-    setLoading(true);
-    let usuariosGuardados = JSON.parse(localStorage.getItem('usuarios') || 'null');
-    
-    if (!usuariosGuardados) {
-      fetchUsuarios().then(data => {
-        localStorage.setItem('usuarios', JSON.stringify(data));
-        setUsuarios(data);
-        setLoading(false);
-      });
-    } else {
-      setUsuarios(usuariosGuardados);
-      setLoading(false);
+  // Helper function to extract role name from any format
+  const getRolName = (rol: any): string => {
+    if (typeof rol === 'object' && rol !== null && 'nombre' in rol) {
+      return rol.nombre;
     }
+    if (typeof rol === 'string') {
+      return rol;
+    }
+    return String(rol);
+  };
+
+  useEffect(() => {
+    const loadUsuarios = async () => {
+      try {
+        setLoading(true);
+        console.log('📥 Cargando usuarios desde la API...');
+        
+        // Cargar desde la API
+        const data = await fetchUsuarios();
+        console.log('✅ Usuarios cargados:', data);
+        
+        // Guardar en localStorage también para offline
+        localStorage.setItem('usuarios', JSON.stringify(data));
+        
+        setUsuarios(data);
+      } catch (error) {
+        console.error('❌ Error cargando usuarios:', error);
+        
+        // Si hay error, intentar cargar desde localStorage
+        const usuariosGuardados = JSON.parse(localStorage.getItem('usuarios') || '[]');
+        setUsuarios(usuariosGuardados);
+        
+        await Swal.fire({
+          title: 'Error',
+          text: 'No se pudieron cargar los usuarios desde la API. Mostrando datos locales.',
+          icon: 'warning'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadUsuarios();
   }, []);
 
   const handleAgregar = () => {
@@ -39,7 +68,11 @@ const AdminUsuarios = () => {
 
   const handleEliminar = async (usuario: Usuario) => {
     // Verificar si es admin
-    if (usuario.rol === RolUsuario.Admin) {
+    const esAdmin = usuario.rol === RolUsuario.Admin || 
+                    usuario.rol === 'ADMIN' || 
+                    usuario.rol === 'Administrador';
+
+    if (esAdmin) {
       await Swal.fire({
         title: 'Acción Denegada',
         text: 'No puedes eliminar a un usuario Administrador.',
@@ -171,7 +204,7 @@ const AdminUsuarios = () => {
                 <td>{user.rut}</td>
                 <td>{user.nombre} {user.apellido}</td>
                 <td>{user.email}</td>
-                <td>{user.rol}</td>
+                <td>{getRolName(user.rol)}</td>
                 <td>{user.estado}</td>
                 <td>
                   <button 

@@ -1,14 +1,17 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Modal } from 'bootstrap'; 
 import { useAuth } from '../../context/AuthProvider';
+import { registroMicroservicio, loginUsuario, obtenerUsuarioPorId } from '../../utils/api';
 import { regionesComunas } from '../../utils/regiones';
 import { checkRut } from '../../utils/checkrut';
-import { formatRutOnType } from '../../utils/formatRut'; 
+import { formatRutOnType } from '../../utils/formatRut';
+import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
 const RegistroModal = () => {
   const modalRef = useRef<HTMLDivElement>(null);
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     rut: '',
     nombre: '',
@@ -93,59 +96,149 @@ const RegistroModal = () => {
       return;
     }
 
-    const urlRegistro = 'http://localhost:8180/api/auth/register'; 
-    const emailLimpio = form.email.trim( );
-
     try {
-        const response = await fetch(urlRegistro, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                rut: form.rut,
-                nombre: form.nombre,
-                apellido: form.apellido,
-                email: emailLimpio,
-                password: form.password,
-                direccion: form.direccion,
-                region: form.region,
-                comuna: form.comuna,
-                fechaNacimiento: form.fecha_nacimiento, 
-            }),
-        });
+      const response = await registroMicroservicio({
+        rut: form.rut,
+        nombre: form.nombre,
+        apellido: form.apellido,
+        email: form.email.trim(),
+        password: form.password,
+        direccion: form.direccion,
+        region: form.region,
+        comuna: form.comuna,
+        fechaNacimiento: form.fecha_nacimiento,
+      });
 
-        const data = await response.json();
-
-        if (response.ok) {
-            const modalElement = modalRef.current;
-            if (modalElement) {
-                const modalInstance = Modal.getInstance(modalElement);
-                if (modalInstance) {
-                    modalInstance.hide();
-                }
-            }
-
-            await Swal.fire({
-                title: "¡Éxito!",
-                text: "Usuario registrado con éxito.",
-                icon: "success",
-                allowOutsideClick: false
-            });
-            
-             if (data.user) {
-                 login(data.user); 
-            }
-
-        } else if (response.status === 409) {
-            await Swal.fire("Error", "El usuario ya se encuentra registrado.", "error");
-        } else {
-            await Swal.fire("Error", data.message || "Ocurrió un error en el registro.", "error");
+      if (response.success) {
+        // Cerrar modal correctamente
+        const modalElement = modalRef.current;
+        if (modalElement) {
+          const modalInstance = Modal.getInstance(modalElement);
+          if (modalInstance) {
+            modalInstance.hide();
+          }
         }
 
+        // Esperar a que el modal se cierre
+        setTimeout(async () => {
+          // Limpiar backdrops de forma segura
+          const backdrops = document.querySelectorAll('.modal-backdrop');
+          backdrops.forEach(backdrop => {
+            try {
+              if (backdrop.parentNode) {
+                backdrop.parentNode.removeChild(backdrop);
+              }
+            } catch (e) {
+              // Ignorar errores de eliminación
+            }
+          });
+          
+          // Limpiar clases del body
+          document.body.classList.remove('modal-open');
+          document.body.style.removeProperty('overflow');
+          document.body.style.removeProperty('padding-right');
+
+          await Swal.fire({
+            title: "¡Éxito!",
+            text: "Usuario registrado con éxito.",
+            icon: "success",
+            allowOutsideClick: false,
+            timer: 1500,
+            showConfirmButton: false
+          });
+          
+          // Hacer login automático para obtener token y datos completos
+          const loginResponse = await loginUsuario(form.email, form.password);
+          
+          if (loginResponse.success && loginResponse.usuario) {
+            let usuario = loginResponse.usuario;
+            
+            console.log('📥 Usuario después del registro automático:', usuario);
+            console.log('📥 Rol del usuario (raw):', usuario.rol);
+            console.log('📥 Tipo de rol:', typeof usuario.rol);
+            
+            // Obtener datos completos del usuario
+            console.log('📥 Obteniendo datos completos del usuario...');
+            const completoResponse = await obtenerUsuarioPorId(usuario.id);
+            if (completoResponse.success && completoResponse.usuario) {
+              usuario = completoResponse.usuario;
+              console.log('✅ Datos completos obtenidos:', usuario);
+              console.log('✅ Rol completo (raw):', usuario.rol);
+              console.log('✅ Tipo de rol:', typeof usuario.rol);
+            }
+            
+            // Determinar si es admin ANTES de hacer login
+            // El backend puede retornar: "ADMIN", "Administrador", 1 (ID), o directamente el objeto rol
+            const rolValue = usuario.rol;
+            
+            // Función auxiliar para extraer el nombre del rol
+            const getRolName = (rol: any): string => {
+              if (typeof rol === 'string') {
+                return rol.toUpperCase();
+              }
+              if (typeof rol === 'number') {
+                const rolMap: { [key: number]: string } = { 1: 'ADMIN', 2: 'USUARIO', 3: 'VENDEDOR' };
+                return rolMap[rol] || 'USUARIO';
+              }
+              if (typeof rol === 'object' && rol !== null && 'nombre' in rol) {
+                return String(rol.nombre).toUpperCase();
+              }
+              return 'USUARIO';
+            };
+            
+            const rolStr = getRolName(rolValue);
+            const esAdmin = rolStr === 'ADMIN' || rolStr === 'ADMINISTRADOR' || rolStr === 'VENDEDOR';
+            
+            console.log('🔍 Verificando rol:');
+            console.log('  - rolValue:', rolValue);
+            console.log('  - rolStr (uppercase):', rolStr);
+            console.log('  - esAdmin:', esAdmin);
+            
+            // Guardar token
+            if (loginResponse.token) {
+              localStorage.setItem('authToken', loginResponse.token);
+            }
+            
+            // Login con los datos completos del usuario
+            login(usuario);
+            
+            // Limpiar backdrops de forma segura
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => {
+              try {
+                if (backdrop.parentNode) {
+                  backdrop.parentNode.removeChild(backdrop);
+                }
+              } catch (e) {
+                // Ignorar errores de eliminación
+              }
+            });
+            
+            // Limpiar clases del body
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+            
+            console.log('✅ Redirección iniciada...');
+            console.log('esAdmin:', esAdmin);
+            
+            // Redirigir según el rol
+            if (esAdmin) {
+              console.log('✅ Redirigiendo a /admin/dashboard');
+              navigate('/admin/dashboard');
+            } else {
+              console.log('✅ Redirigiendo a /');
+              navigate('/');
+            }
+          }
+        }, 500); // Aumentar tiempo para asegurar que el modal se cierre
+        
+      } else {
+        await Swal.fire("Error", response.message || "Ocurrió un error en el registro.", "error");
+      }
     } catch (error) {
-        console.error('Error de conexión:', error);
-        await Swal.fire("Error", "No se pudo conectar con el microservicio. Asegúrate de que esté corriendo en http://localhost:8180.", "error" );
+      console.error('Error de conexión:', error);
+      await Swal.fire("Error", "No se pudo conectar con el microservicio. Asegúrate de que esté corriendo en http://localhost:8180.", "error");
     }
   };
 

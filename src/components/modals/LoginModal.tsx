@@ -1,10 +1,8 @@
 import { useState, useRef } from 'react';
 import { Modal } from 'bootstrap'; 
 import { useAuth } from '../../context/AuthProvider';
-import { fetchUsuarios, fetchAdmins } from '../../utils/api';
-import { RolUsuario } from '../../interfaces/rolUsuario';
+import { loginUsuario, obtenerUsuarioPorId } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
-import Swal from 'sweetalert2';
 
 const LoginModal = () => {
   const [email, setEmail] = useState('');
@@ -16,97 +14,115 @@ const LoginModal = () => {
   
   const modalRef = useRef<HTMLDivElement>(null);
 
-  const closeModalAndRedirect = (usuario: any) => {
-    if (modalRef.current) {
-      const modal = Modal.getInstance(modalRef.current);
-      if (modal) {
-        // Configurar el listener para después del cierre
-        const onModalHidden = () => {
-          // Limpiar completamente el modal
-          const backdrops = document.querySelectorAll('.modal-backdrop');
-          backdrops.forEach(backdrop => backdrop.remove());
-          
-          document.body.classList.remove('modal-open');
-          document.body.style.removeProperty('overflow');
-          document.body.style.removeProperty('padding-right');
-          
-          // Mostrar mensaje y redirigir
-          setTimeout(async () => {
-            await Swal.fire({
-              title: '¡Bienvenido!',
-              text: `Has iniciado sesión como ${usuario.nombre}`,
-              icon: 'success',
-              confirmButtonColor: '#198754',
-              timer: 1500,
-              showConfirmButton: false
-            });
-            
-            // Redirigir según el rol
-            if (usuario.rol === RolUsuario.Admin || usuario.rol === RolUsuario.Vendedor) {
-              navigate('/admin/dashboard');
-            }
-          }, 100);
-          
-          // Remover el listener
-          modalRef.current?.removeEventListener('hidden.bs.modal', onModalHidden);
-        };
-        
-        modalRef.current.addEventListener('hidden.bs.modal', onModalHidden);
-        modal.hide();
-      } else {
-        // Si no hay instancia del modal, forzar limpieza
-        document.body.classList.remove('modal-open');
-        document.body.style.removeProperty('overflow');
-        document.body.style.removeProperty('padding-right');
-        
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        backdrops.forEach(backdrop => backdrop.remove());
-        
-        if (usuario.rol === RolUsuario.Admin || usuario.rol === RolUsuario.Vendedor) {
-          navigate('/admin/dashboard');
-        }
-      }
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      let usuarioEncontrado = null;
+      // Llamar al microservicio de login
+      const response = await loginUsuario(email, password);
 
-      // Buscar primero en usuarios (clientes)
-      const usuarios = await fetchUsuarios();
-      usuarioEncontrado = usuarios.find(u => 
-        u.email === email && 
-        u.password === password && 
-        u.rol === RolUsuario.Cliente
-      );
-
-      if (!usuarioEncontrado) {
-        // Si no se encuentra en usuarios, buscar en admins
-        const admins = await fetchAdmins();
-        usuarioEncontrado = admins.find(u => 
-          u.email === email && 
-          u.password === password && 
-          (u.rol === RolUsuario.Admin || u.rol === RolUsuario.Vendedor)
-        );
-      }
-
-      if (usuarioEncontrado) {
+      if (response.success && response.usuario) {
+        let usuario = response.usuario;
+        
+        console.log('📥 Usuario después del login:', usuario);
+        console.log('📥 Rol del usuario (raw):', usuario.rol);
+        console.log('📥 Tipo de rol:', typeof usuario.rol);
+        
+        // Obtener datos completos del usuario
+        console.log('📥 Obteniendo datos completos del usuario...');
+        const completoResponse = await obtenerUsuarioPorId(usuario.id);
+        if (completoResponse.success && completoResponse.usuario) {
+          usuario = completoResponse.usuario;
+          console.log('✅ Datos completos obtenidos:', usuario);
+          console.log('✅ Rol completo (raw):', usuario.rol);
+          console.log('✅ Tipo de rol:', typeof usuario.rol);
+        }
+        
+        // Determinar si es admin ANTES de hacer login
+        // El backend puede retornar: "ADMIN", "Administrador", 1 (ID), o directamente el objeto rol
+        const rolValue = usuario.rol;
+        
+        // Función auxiliar para extraer el nombre del rol
+        const getRolName = (rol: any): string => {
+          if (typeof rol === 'string') {
+            return rol.toUpperCase();
+          }
+          if (typeof rol === 'number') {
+            const rolMap: { [key: number]: string } = { 1: 'ADMIN', 2: 'USUARIO', 3: 'VENDEDOR' };
+            return rolMap[rol] || 'USUARIO';
+          }
+          if (typeof rol === 'object' && rol !== null && 'nombre' in rol) {
+            return String(rol.nombre).toUpperCase();
+          }
+          return 'USUARIO';
+        };
+        
+        const rolStr = getRolName(rolValue);
+        const esAdmin = rolStr === 'ADMIN' || rolStr === 'ADMINISTRADOR' || rolStr === 'VENDEDOR';
+        
+        console.log('🔍 Verificando rol:');
+        console.log('  - rolValue:', rolValue);
+        console.log('  - rolStr (uppercase):', rolStr);
+        console.log('  - esAdmin:', esAdmin);
+        
         // Login y resetear campos
-        login(usuarioEncontrado);
+        login(usuario);
         setError('');
         setEmail('');
         setPassword('');
 
-        // Cerrar modal y redirigir
-        closeModalAndRedirect(usuarioEncontrado);
+        // Cerrar modal correctamente
+        if (modalRef.current) {
+          const modal = Modal.getInstance(modalRef.current);
+          if (modal) {
+            modal.hide();
+          }
+        }
+
+        // Esperar a que el modal se cierre y LUEGO redirigir
+        setTimeout(() => {
+          console.log('⏳ Esperando 500ms...');
+          console.log('Usuario en el setTimeout:', usuario);
+          console.log('esAdmin en el setTimeout:', esAdmin);
+          console.log('window.location.href antes de navigate:', window.location.href);
+          
+          // Limpiar backdrops de forma segura
+          const backdrops = document.querySelectorAll('.modal-backdrop');
+          backdrops.forEach(backdrop => {
+            try {
+              if (backdrop.parentNode) {
+                backdrop.parentNode.removeChild(backdrop);
+              }
+            } catch (e) {
+              // Ignorar errores de eliminación
+            }
+          });
+          
+          // Limpiar clases del body
+          document.body.classList.remove('modal-open');
+          document.body.style.removeProperty('overflow');
+          document.body.style.removeProperty('padding-right');
+          
+          console.log('✅ Redirección iniciada...');
+          console.log('esAdmin:', esAdmin);
+          console.log('window.location.href después de limpiar:', window.location.href);
+          
+          // Redirigir según el rol
+          if (esAdmin) {
+            console.log('✅ Redirigiendo a /admin/dashboard');
+            console.log('navigate function:', typeof navigate);
+            navigate('/admin/dashboard');
+            console.log('después de navigate:', window.location.href);
+          } else {
+            console.log('✅ Redirigiendo a /');
+            navigate('/');
+          }
+        }, 500); // Aumentar tiempo para asegurar que el modal se cierre
 
       } else {
-        setError('Correo o contraseña incorrectos.');
+        setError(response.message || 'Correo o contraseña incorrectos.');
       }
     } catch (error) {
       setError('Error al intentar iniciar sesión.');
