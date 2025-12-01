@@ -1,6 +1,6 @@
 import type { Usuario } from '../interfaces/usuario';
 import type { Producto } from '../interfaces/producto';
-const BASE_URL = '/data'; 
+const BASE_URL = "https://localhost:3306";
 
 export const fetchUsuarios = async (): Promise<Usuario[]> => {
   try {
