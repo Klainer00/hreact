@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Usuario } from '../../interfaces/usuario';
-import { RolUsuario } from '../../interfaces/rolUsuario';
 import { checkRut } from '../../utils/checkrut';
 
 interface Props {
@@ -22,8 +21,8 @@ const ModalUsuario = ({ show, onClose, onSave, usuarioToEdit }: Props) => {
     direccion: '',
     region: '',
     comuna: '',
-    rol: RolUsuario.Cliente,
-    estado: 'Activo',
+    rol: 'USUARIO',
+    estado: 'activo',
   };
   
   const [form, setForm] = useState<Usuario>(initialState);
@@ -107,16 +106,16 @@ const ModalUsuario = ({ show, onClose, onSave, usuarioToEdit }: Props) => {
                 <div className="col-md-6 mb-3">
                   <label htmlFor="rol" className="form-label">Rol</label>
                   <select className="form-select" id="rol" value={form.rol} onChange={handleChange}>
-                    <option value={RolUsuario.Cliente}>{RolUsuario.Cliente}</option>
-                    <option value={RolUsuario.Vendedor}>{RolUsuario.Vendedor}</option>
-                    <option value={RolUsuario.Admin}>{RolUsuario.Admin}</option>
+                    <option value="USUARIO">Usuario</option>
+                    <option value="VENDEDOR">Vendedor</option>
+                    <option value="ADMIN">Administrador</option>
                   </select>
                 </div>
                 <div className="col-md-6 mb-3">
                   <label htmlFor="estado" className="form-label">Estado</label>
                   <select className="form-select" id="estado" value={form.estado} onChange={handleChange}>
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
+                    <option value="activo">Activo</option>
+                    <option value="inactivo">Inactivo</option>
                   </select>
                 </div>
               </div>

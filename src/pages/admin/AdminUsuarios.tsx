@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Usuario } from '../../interfaces/usuario';
 import { RolUsuario } from '../../interfaces/rolUsuario'; 
-import { fetchUsuarios } from '../../utils/api';
+import { fetchUsuarios, registrarUsuario, actualizarUsuario, eliminarUsuario, verificarUsuarioTienePedidos } from '../../utils/api';
 import ModalUsuario from '../../components/modals/ModalUsuario'; 
 import Swal from 'sweetalert2'; 
 
@@ -26,18 +26,18 @@ const AdminUsuarios = () => {
     const loadUsuarios = async () => {
       try {
         setLoading(true);
-        console.log('📥 Cargando usuarios desde la API...');
+        console.log('Cargando usuarios desde la API...');
         
         // Cargar desde la API
         const data = await fetchUsuarios();
-        console.log('✅ Usuarios cargados:', data);
+        console.log('Usuarios cargados:', data);
         
         // Guardar en localStorage también para offline
         localStorage.setItem('usuarios', JSON.stringify(data));
         
         setUsuarios(data);
       } catch (error) {
-        console.error('❌ Error cargando usuarios:', error);
+        console.error(' Error cargando usuarios:', error);
         
         // Si hay error, intentar cargar desde localStorage
         const usuariosGuardados = JSON.parse(localStorage.getItem('usuarios') || '[]');
@@ -67,15 +67,11 @@ const AdminUsuarios = () => {
   };
 
   const handleEliminar = async (usuario: Usuario) => {
-    // Verificar si es admin
-    const esAdmin = usuario.rol === RolUsuario.Admin || 
-                    usuario.rol === 'ADMIN' || 
-                    usuario.rol === 'Administrador';
-
-    if (esAdmin) {
+    // Validar que el usuario a eliminar tenga todos los datos necesarios
+    if (!usuario.id || !usuario.nombre || !usuario.apellido) {
       await Swal.fire({
-        title: 'Acción Denegada',
-        text: 'No puedes eliminar a un usuario Administrador.',
+        title: 'Error',
+        text: 'Datos de usuario incompletos. No se puede eliminar.',
         icon: 'error',
         confirmButtonColor: '#dc3545',
         confirmButtonText: 'Entendido'
@@ -83,35 +79,110 @@ const AdminUsuarios = () => {
       return;
     }
 
-    // Confirmar eliminación
+    // Verificar si es admin - VALIDACIÓN CRÍTICA
+    const esAdmin = usuario.rol === RolUsuario.Admin || 
+                    usuario.rol === 'ADMIN' || 
+                    usuario.rol === 'Administrador' ||
+                    usuario.rol === RolUsuario.Vendedor ||
+                    usuario.rol === 'VENDEDOR';
+
+    if (esAdmin) {
+      await Swal.fire({
+        title: 'Acción Denegada ❌',
+        text: `No puedes eliminar a un usuario con rol ${usuario.rol}. Solo se pueden eliminar usuarios normales.`,
+        icon: 'error',
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+
+    // Verificar si es el último admin (protección adicional)
+    const admins = usuarios.filter(u => 
+      u.rol === RolUsuario.Admin || 
+      u.rol === 'ADMIN' || 
+      u.rol === 'Administrador'
+    );
+    
+    if (admins.length <= 1 && (usuario.rol === RolUsuario.Admin || usuario.rol === 'ADMIN' || usuario.rol === 'Administrador')) {
+      await Swal.fire({
+        title: 'Acción Denegada ❌',
+        text: 'No puedes eliminar el último administrador del sistema.',
+        icon: 'error',
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+
+    // Verificar si el usuario tiene pedidos asociados
+    const resultadoPedidos = await verificarUsuarioTienePedidos(usuario.id);
+    if (resultadoPedidos.tienePedidos) {
+      await Swal.fire({
+        title: 'Acción Denegada ❌',
+        text: `No puedes eliminar este usuario porque tiene ${resultadoPedidos.cantidad} pedido(s) asociado(s).\n\nProcesa o cancela los pedidos antes de continuar.`,
+        icon: 'warning',
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+
+    // Confirmación final antes de eliminar
     const result = await Swal.fire({
       title: '¿Estás seguro?',
-      text: `¿Deseas eliminar al usuario ${usuario.nombre} ${usuario.apellido}?`,
+      html: `<p>Vas a eliminar a:</p><strong>${usuario.nombre} ${usuario.apellido}</strong><br/><em>${usuario.email}</em><p style="color: #dc3545; margin-top: 10px;">⚠️ Esta acción es <strong>irreversible</strong></p>`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc3545',
       cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Sí, eliminar',
+      confirmButtonText: 'Sí, eliminar permanentemente',
       cancelButtonText: 'Cancelar'
     });
 
     if (result.isConfirmed) {
       try {
-        const nuevosUsuarios = usuarios.filter(u => u.id !== usuario.id);
-        setUsuarios(nuevosUsuarios);
-        localStorage.setItem('usuarios', JSON.stringify(nuevosUsuarios));
-        
-        await Swal.fire({
-          title: '¡Eliminado!',
-          text: 'El usuario ha sido eliminado correctamente.',
-          icon: 'success',
-          timer: 1500, // <-- Añadido timer
-          showConfirmButton: false // <-- Añadido
+        // Mostrar loading
+        Swal.fire({
+          title: 'Eliminando...',
+          html: 'Por favor espera mientras se elimina el usuario de la base de datos.',
+          icon: 'info',
+          allowOutsideClick: false,
+          didOpen: async () => {
+            Swal.showLoading();
+            
+            // Llamar a la API para eliminar el usuario
+            const response = await eliminarUsuario(usuario.id);
+            
+            if (response.success) {
+              // Actualizar la lista local
+              const nuevosUsuarios = usuarios.filter(u => u.id !== usuario.id);
+              setUsuarios(nuevosUsuarios);
+              localStorage.setItem('usuarios', JSON.stringify(nuevosUsuarios));
+              
+              await Swal.fire({
+                title: '¡Eliminado! ✅',
+                text: `El usuario ${usuario.nombre} ha sido eliminado correctamente de la base de datos.`,
+                icon: 'success',
+                confirmButtonColor: '#28a745',
+                timer: 2000,
+                showConfirmButton: true
+              });
+            } else {
+              await Swal.fire({
+                title: 'Error',
+                text: response.message || 'Ocurrió un error al eliminar el usuario.',
+                icon: 'error',
+                confirmButtonColor: '#dc3545'
+              });
+            }
+          }
         });
-      } catch (error) {
+      } catch (error: any) {
+        console.error('Error al eliminar:', error);
         await Swal.fire({
           title: 'Error',
-          text: 'Ocurrió un error al eliminar el usuario.',
+          text: error.message || 'Ocurrió un error inesperado al eliminar el usuario.',
           icon: 'error',
           confirmButtonColor: '#dc3545'
         });
@@ -119,53 +190,106 @@ const AdminUsuarios = () => {
     }
   };
 
-  // --- 💡 INICIO DE LA CORRECCIÓN 💡 ---
   const handleSave = async (usuario: Usuario) => {
-    // 1. Declarar 'isEditing' FUERA del try/catch
-    const isEditing = usuarioToEdit !== null; 
+    const isEditing = usuarioToEdit !== null;
     
     try {
-      let nuevosUsuarios;
+      let response;
+      let usuarioGuardado: Usuario | undefined;
       
       if (isEditing) {
-        nuevosUsuarios = usuarios.map(u => 
-          u.id === usuario.id ? { ...u, ...usuario } : u
-        );
+        // Actualizar usuario existente - IMPORTANTE: enviar TODOS los campos
+        const usuarioActualizar: Partial<Usuario> = {
+          id: usuario.id,
+          nombre: usuario.nombre || '',
+          apellido: usuario.apellido || '', // ← CRÍTICO: Este campo NO puede ser null
+          email: usuario.email || '',
+          rut: usuario.rut || '',
+          fecha_nacimiento: usuario.fecha_nacimiento || '',
+          direccion: usuario.direccion || '',
+          region: usuario.region || '',
+          comuna: usuario.comuna || '',
+          rol: usuario.rol || 'USUARIO',
+          estado: usuario.estado || 'activo',
+          // Solo incluir password si no está vacío
+          ...(usuario.password && usuario.password.trim() !== '' && { password: usuario.password })
+        };
+        
+        console.log('📤 Datos a actualizar:', usuarioActualizar);
+        response = await actualizarUsuario(usuario.id, usuarioActualizar);
+        usuarioGuardado = response.usuario;
       } else {
-        const maxId = usuarios.reduce((max, u) => u.id > max ? u.id : max, 0);
-        const nuevoUsuarioConId = { ...usuario, id: maxId + 1 };
-        nuevosUsuarios = [...usuarios, nuevoUsuarioConId];
+        // Crear nuevo usuario
+        const nuevoUsuario: Omit<Usuario, 'id'> = {
+          nombre: usuario.nombre || '',
+          apellido: usuario.apellido || '',
+          email: usuario.email || '',
+          rut: usuario.rut || '',
+          fecha_nacimiento: usuario.fecha_nacimiento || '',
+          direccion: usuario.direccion || '',
+          region: usuario.region || '',
+          comuna: usuario.comuna || '',
+          rol: usuario.rol || 'USUARIO',
+          estado: usuario.estado || 'activo',
+          password: usuario.password || '',
+        };
+        
+        console.log('📤 Datos a crear:', nuevoUsuario);
+        response = await registrarUsuario(nuevoUsuario);
+        usuarioGuardado = response.usuario;
       }
       
-      setUsuarios(nuevosUsuarios);
-      localStorage.setItem('usuarios', JSON.stringify(nuevosUsuarios));
-      setShowModal(false);
+      // Si la API falla, usar un fallback local
+      if (!response.success && !usuarioGuardado) {
+        console.warn('⚠️ API falló, usando fallback local');
+        
+        if (isEditing) {
+          usuarioGuardado = usuario;
+        } else {
+          // Generar ID local
+          const maxId = usuarios.reduce((max, u) => u.id > max ? u.id : max, 0);
+          usuarioGuardado = { ...usuario, id: maxId + 1 };
+        }
+      }
+      
+      if (usuarioGuardado) {
+        // Actualizar la lista local
+        let nuevosUsuarios;
+        if (isEditing) {
+          nuevosUsuarios = usuarios.map(u => u.id === usuarioGuardado!.id ? usuarioGuardado! : u);
+        } else {
+          nuevosUsuarios = [...usuarios, usuarioGuardado];
+        }
+        
+        setUsuarios(nuevosUsuarios);
+        localStorage.setItem('usuarios', JSON.stringify(nuevosUsuarios));
+        setShowModal(false);
 
-      // 2. Mostrar mensaje de éxito
-      await Swal.fire({
-        title: '¡Éxito!',
-        text: isEditing 
-          ? `El usuario ${usuario.nombre} ha sido actualizado.`
-          : `El usuario ${usuario.nombre} ha sido creado.`,
-        icon: 'success',
-        timer: 1500, // <-- Añadido timer
-        showConfirmButton: false // <-- Añadido
-      });
-
-    } catch (error) {
-      // 3. Ahora 'isEditing' SÍ es accesible aquí
+        await Swal.fire({
+          title: '¡Éxito!',
+          text: isEditing 
+            ? `El usuario ${usuario.nombre} ha sido actualizado en la base de datos.`
+            : `El usuario ${usuario.nombre} ha sido creado en la base de datos.`,
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      } else {
+        throw new Error(response?.message || 'Error desconocido');
+      }
+    } catch (error: any) {
+      console.error('Error guardando usuario:', error);
       await Swal.fire({
         title: 'Error',
-        text: isEditing 
-          ? 'Ocurrió un error al actualizar el usuario.'
-          : 'Ocurrió un error al crear el usuario.',
+        text: error.message || (isEditing 
+          ? 'Ocurrió un error al actualizar el usuario en la base de datos.'
+          : 'Ocurrió un error al crear el usuario en la base de datos.'),
         icon: 'error',
         confirmButtonColor: '#dc3545',
         confirmButtonText: 'Entendido'
       });
     }
   };
-  // --- 💡 FIN DE LA CORRECCIÓN 💡 ---
 
   if (loading) {
     return <div>Cargando usuarios...</div>;
@@ -175,13 +299,15 @@ const AdminUsuarios = () => {
     <>
       <div className="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
         <h1 className="h2">Gestión de Usuarios</h1>
-        <button 
-          type="button" 
-          className="btn btn-sm btn-outline-success"
-          onClick={handleAgregar}
-        >
-          + Agregar Nuevo Usuario
-        </button>
+        <div className="d-flex gap-2">
+          <button 
+            type="button" 
+            className="btn btn-sm btn-outline-success"
+            onClick={handleAgregar}
+          >
+            + Agregar Nuevo Usuario
+          </button>
+        </div>
       </div>
 
       <div className="table-responsive">

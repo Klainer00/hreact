@@ -12,4 +12,5 @@ export interface Usuario {
   rol: RolUsuario | string; 
   estado: string;
   password?: string;
+  token?: string;
 }

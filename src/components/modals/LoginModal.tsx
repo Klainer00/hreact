@@ -26,18 +26,24 @@ const LoginModal = () => {
       if (response.success && response.usuario) {
         let usuario = response.usuario;
         
-        console.log('📥 Usuario después del login:', usuario);
-        console.log('📥 Rol del usuario (raw):', usuario.rol);
-        console.log('📥 Tipo de rol:', typeof usuario.rol);
+        // Guardar el token si viene en la respuesta
+        if (response.token) {
+          usuario = { ...usuario, token: response.token };
+          console.log('✅ Token agregado al usuario:', response.token.substring(0, 20) + '...');
+        }
+        
+        console.log('Usuario después del login:', usuario);
+        console.log('Rol del usuario (raw):', usuario.rol);
+        console.log('Tipo de rol:', typeof usuario.rol);
         
         // Obtener datos completos del usuario
-        console.log('📥 Obteniendo datos completos del usuario...');
+        console.log('Obteniendo datos completos del usuario');
         const completoResponse = await obtenerUsuarioPorId(usuario.id);
         if (completoResponse.success && completoResponse.usuario) {
           usuario = completoResponse.usuario;
-          console.log('✅ Datos completos obtenidos:', usuario);
-          console.log('✅ Rol completo (raw):', usuario.rol);
-          console.log('✅ Tipo de rol:', typeof usuario.rol);
+          console.log('Datos completos obtenidos:', usuario);
+          console.log('Rol completo (raw):', usuario.rol);
+          console.log('Tipo de rol:', typeof usuario.rol);
         }
         
         // Determinar si es admin ANTES de hacer login
@@ -83,7 +89,7 @@ const LoginModal = () => {
 
         // Esperar a que el modal se cierre y LUEGO redirigir
         setTimeout(() => {
-          console.log('⏳ Esperando 500ms...');
+          console.log('Esperando 500ms');
           console.log('Usuario en el setTimeout:', usuario);
           console.log('esAdmin en el setTimeout:', esAdmin);
           console.log('window.location.href antes de navigate:', window.location.href);
@@ -105,18 +111,18 @@ const LoginModal = () => {
           document.body.style.removeProperty('overflow');
           document.body.style.removeProperty('padding-right');
           
-          console.log('✅ Redirección iniciada...');
+          console.log('Redirección iniciada...');
           console.log('esAdmin:', esAdmin);
           console.log('window.location.href después de limpiar:', window.location.href);
           
           // Redirigir según el rol
           if (esAdmin) {
-            console.log('✅ Redirigiendo a /admin/dashboard');
+            console.log('Redirigiendo a /admin/dashboard');
             console.log('navigate function:', typeof navigate);
             navigate('/admin/dashboard');
             console.log('después de navigate:', window.location.href);
           } else {
-            console.log('✅ Redirigiendo a /');
+            console.log('Redirigiendo a /');
             navigate('/');
           }
         }, 500); // Aumentar tiempo para asegurar que el modal se cierre

@@ -6,6 +6,65 @@ const MICROSERVICE_URL = import.meta.env.VITE_API_USUARIOS_URL || '/api/usuarios
 // ==================== HELPERS ====================
 
 /**
+ * Obtiene el token JWT del localStorage
+ */
+const getAuthToken = (): string | null => {
+  try {
+    // Primero intentar obtener el token directo (guardado por loginUsuario)
+    const authToken = localStorage.getItem('authToken');
+    if (authToken) {
+      console.log(' Token obtenido de authToken');
+      console.log('   Token (primeros 50 chars):', authToken.substring(0, 50) + '...');
+      return authToken;
+    }
+    
+    // Si no existe, buscar dentro del usuario logueado
+    const usuarioLogueado = localStorage.getItem('usuarioLogueado');
+    if (usuarioLogueado) {
+      const usuario = JSON.parse(usuarioLogueado);
+      if (usuario.token) {
+        console.log(' Token obtenido de usuarioLogueado.token');
+        console.log('   Token (primeros 50 chars):', usuario.token.substring(0, 50) + '...');
+        return usuario.token;
+      }
+    }
+    
+    console.warn(' No se encontró token en localStorage');
+    console.warn('   authToken:', localStorage.getItem('authToken') ? 'Existe' : 'No existe');
+    console.warn('   usuarioLogueado:', localStorage.getItem('usuarioLogueado') ? 'Existe' : 'No existe');
+    return null;
+  } catch (error) {
+    console.error('Error obteniendo token:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtiene headers con autenticación
+ */
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  const token = getAuthToken();
+  if (token) {
+    // Intentar con formato "Bearer token"
+    headers['Authorization'] = `Bearer ${token}`;
+    
+    // También incluir como header alternativo por si el servidor lo espera así
+    headers['X-Auth-Token'] = token;
+    
+    console.log(' Authorization header:', `Bearer ${token.substring(0, 30)}...`);
+    console.log(' X-Auth-Token header:', token.substring(0, 30) + '...');
+  } else {
+    console.warn(' No hay token, request sin autenticación');
+  }
+  
+  return headers;
+};
+
+/**
  * Intenta parsear la respuesta como JSON si es válida
  * Si no es válido, devuelve un objeto con mensaje genérico
  */
@@ -21,6 +80,57 @@ const parseResponseJson = async (response: Response): Promise<any> => {
   }
   
   return { message: 'Respuesta inválida del servidor' };
+};
+
+// ==================== DEBUG ====================
+
+/**
+ * Función para testear la conexión a la API
+ */
+export const testAPIConnection = async () => {
+  try {
+    console.log('🧪 Testeando conexión a API...');
+    console.log('   URL base:', MICROSERVICE_URL);
+    
+    const token = getAuthToken();
+    console.log('   Token disponible:', token ? 'Sí' : 'No');
+    
+    if (token) {
+      console.log('   Token (primeros 30 chars):', token.substring(0, 30) + '...');
+    }
+    
+    // Test 1: GET sin autenticación
+    console.log('\nTest 1: GET /api/usuarios (sin autenticación)');
+    const res1 = await fetch(`${MICROSERVICE_URL}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    console.log('   Status:', res1.status);
+    
+    // Test 2: GET con autenticación
+    if (token) {
+      console.log('\nTest 2: GET /api/usuarios (con Bearer token)');
+      const res2 = await fetch(`${MICROSERVICE_URL}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      console.log('   Status:', res2.status);
+      
+      console.log('\nTest 3: PUT /api/usuarios/1 (con Bearer token)');
+      const res3 = await fetch(`${MICROSERVICE_URL}/1`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ nombre: 'Test' })
+      });
+      console.log('   Status:', res3.status);
+      
+      // Leer el body de la respuesta
+      const data = await res3.text();
+      console.log('   Response body:', data.substring(0, 200));
+    }
+  } catch (error) {
+    console.error(' Error en test:', error);
+  }
 };
 
 // ==================== USUARIOS (Microservicio) ====================
@@ -45,27 +155,59 @@ export const fetchUsuarios = async (): Promise<Usuario[]> => {
 
 export const registrarUsuario = async (usuario: Omit<Usuario, 'id'>): Promise<{ success: boolean; usuario?: Usuario; message: string }> => {
   try {
+    console.log(' Creando nuevo usuario');
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Si hay token (admin creando usuario), lo incluimos
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log(' Token incluido en headers');
+    } else {
+      console.log(' Sin token, intentando sin autenticación');
+    }
+    
     const response = await fetch(`${MICROSERVICE_URL}/registro`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(usuario),
     });
     
-    const data = await parseResponseJson(response);
+    console.log(' Response status:', response.status);
     
-    if (!response.ok) {
-      throw new Error(data.message || 'Error al registrar usuario');
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      data = { message: await response.text() };
     }
     
+    console.log(' Response data:', data);
+    
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new Error('No tienes permisos para crear usuarios (403 Forbidden)');
+      }
+      if (response.status === 409) {
+        throw new Error('El usuario ya existe (email duplicado)');
+      }
+      if (response.status === 400) {
+        throw new Error('Datos inválidos: ' + (data.message || 'Revisa los campos'));
+      }
+      
+      throw new Error(data.message || `Error ${response.status}: Error al registrar usuario`);
+    }
+
     return {
       success: true,
-      usuario: data,
-      message: 'Usuario registrado correctamente',
+      usuario: data || usuario,
+      message: 'Usuario registrado correctamente en la base de datos',
     };
   } catch (error: any) {
-    console.error('Error registering usuario:', error);
+    console.error(' Error registering usuario:', error.message);
     return {
       success: false,
       message: error.message || 'Error al registrar usuario',
@@ -76,7 +218,7 @@ export const registrarUsuario = async (usuario: Omit<Usuario, 'id'>): Promise<{ 
 
 export const obtenerUsuarioPorId = async (id: number): Promise<{ success: boolean; usuario?: Usuario; message: string }> => {
   try {
-    console.log('📤 Obteniendo usuario completo por ID:', id);
+    console.log('Obteniendo usuario completo por ID:', id);
     
     const response = await fetch(`/api/usuarios/${id}`, {
       method: 'GET',
@@ -85,7 +227,7 @@ export const obtenerUsuarioPorId = async (id: number): Promise<{ success: boolea
       },
     });
 
-    console.log('📥 Response status:', response.status);
+    console.log('Response status:', response.status);
 
     if (!response.ok) {
       throw new Error('Error al obtener usuario');
@@ -94,16 +236,16 @@ export const obtenerUsuarioPorId = async (id: number): Promise<{ success: boolea
     const data = await parseResponseJson(response);
     const usuarioData = data.usuario || data;
     
-    console.log('📥 Datos brutos del usuario:', usuarioData);
-    console.log('📥 Rol bruto:', usuarioData.rol);
-    console.log('📥 Tipo de rol bruto:', typeof usuarioData.rol);
+    console.log('Datos brutos del usuario:', usuarioData);
+    console.log('Rol bruto:', usuarioData.rol);
+    console.log('Tipo de rol bruto:', typeof usuarioData.rol);
     
     // Normalizar rol: si es un número (ID), convertir a nombre
     let rolNormalizado: string | any = usuarioData.rol;
     
     // Si el rol es un objeto con propiedad 'nombre'
     if (typeof usuarioData.rol === 'object' && usuarioData.rol !== null && 'nombre' in usuarioData.rol) {
-      console.log('📥 Rol es un objeto, extrayendo nombre:', usuarioData.rol.nombre);
+      console.log('Rol es un objeto, extrayendo nombre:', usuarioData.rol.nombre);
       rolNormalizado = usuarioData.rol.nombre; // Extraer la propiedad 'nombre'
     } 
     // Si es un número (ID), convertir a nombre
@@ -120,7 +262,7 @@ export const obtenerUsuarioPorId = async (id: number): Promise<{ success: boolea
       rolNormalizado = usuarioData.rol.toUpperCase();
     }
     
-    console.log('📥 Rol normalizado:', rolNormalizado);
+    console.log('Rol normalizado:', rolNormalizado);
     
     const usuarioCompleto: Usuario = {
       id: usuarioData.id || 0,
@@ -136,9 +278,9 @@ export const obtenerUsuarioPorId = async (id: number): Promise<{ success: boolea
       estado: usuarioData.estado || 'activo',
     };
 
-    console.log('✅ Usuario completo construido:', usuarioCompleto);
-    console.log('✅ Rol del usuario construido:', usuarioCompleto.rol);
-    console.log('✅ Tipo de rol construido:', typeof usuarioCompleto.rol);
+    console.log(' Usuario completo construido:', usuarioCompleto);
+    console.log(' Rol del usuario construido:', usuarioCompleto.rol);
+    console.log(' Tipo de rol construido:', typeof usuarioCompleto.rol);
     
     return {
       success: true,
@@ -146,7 +288,7 @@ export const obtenerUsuarioPorId = async (id: number): Promise<{ success: boolea
       message: 'Usuario obtenido correctamente',
     };
   } catch (error: any) {
-    console.error('❌ Error obtaining usuario por ID:', error);
+    console.error(' Error obtaining usuario por ID:', error);
     return {
       success: false,
       message: error.message || 'Error al obtener usuario',
@@ -166,7 +308,7 @@ export const obtenerUsuarioCompleto = async (email: string, id?: number, token?:
       headers['Authorization'] = `Bearer ${authToken}`;
     }
 
-    console.log('📤 Obteniendo usuario completo con token:', authToken ? '✓' : '✗');
+    console.log(' Obteniendo usuario completo con token:', authToken ? '✓' : '✗');
 
     // Primero intentar por ID si está disponible
     if (id) {
@@ -193,7 +335,7 @@ export const obtenerUsuarioCompleto = async (email: string, id?: number, token?:
           estado: usuarioData.estado || 'activo',
         };
 
-        console.log('✅ Usuario obtenido por ID:', usuarioCompleto);
+        console.log('Usuario obtenido por ID:', usuarioCompleto);
         return {
           success: true,
           usuario: usuarioCompleto,
@@ -209,19 +351,19 @@ export const obtenerUsuarioCompleto = async (email: string, id?: number, token?:
     });
 
     if (!usuariosResponse.ok) {
-      console.log('📥 Status al obtener usuarios:', usuariosResponse.status);
+      console.log('Status al obtener usuarios:', usuariosResponse.status);
       throw new Error('Error al obtener lista de usuarios');
     }
 
     const usuariosList = await parseResponseJson(usuariosResponse);
     const usuariosArray = Array.isArray(usuariosList) ? usuariosList : (usuariosList.usuarios || []);
 
-    console.log('📥 Usuarios obtenidos:', usuariosArray.length);
+    console.log('Usuarios obtenidos:', usuariosArray.length);
 
     const usuarioEncontrado = usuariosArray.find((u: any) => u.email === email);
 
     if (!usuarioEncontrado) {
-      console.warn('⚠️ Usuario no encontrado en la lista');
+      console.warn(' Usuario no encontrado en la lista');
       throw new Error('Usuario no encontrado');
     }
 
@@ -239,14 +381,14 @@ export const obtenerUsuarioCompleto = async (email: string, id?: number, token?:
       estado: usuarioEncontrado.estado || 'activo',
     };
 
-    console.log('✅ Usuario obtenido por email:', usuarioCompleto);
+    console.log(' Usuario obtenido por email:', usuarioCompleto);
     return {
       success: true,
       usuario: usuarioCompleto,
       message: 'Usuario obtenido correctamente',
     };
   } catch (error: any) {
-    console.error('❌ Error obtaining usuario completo:', error);
+    console.error(' Error obtaining usuario completo:', error);
     return {
       success: false,
       message: error.message || 'Error al obtener usuario',
@@ -258,7 +400,7 @@ export const loginUsuario = async (email: string, password: string): Promise<{ s
   try {
     const payload = { email, contraseña: password };
     
-    console.log('📤 Enviando login:', payload);
+    console.log(' Enviando login:', payload);
     
     const response = await fetch(`/api/auth/login`, {
       method: 'POST',
@@ -268,18 +410,18 @@ export const loginUsuario = async (email: string, password: string): Promise<{ s
       body: JSON.stringify(payload),
     });
     
-    console.log('📥 Response status:', response.status);
-    console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+    console.log(' Response status:', response.status);
+    console.log(' Response headers:', Object.fromEntries(response.headers.entries()));
     
     const data = await parseResponseJson(response);
     
-    console.log('📥 Response data:', data);
-    console.log('📥 Rol en respuesta:', data.rol);
+    console.log(' Response data:', data);
+    console.log(' Rol en respuesta:', data.rol);
     
     if (!response.ok) {
       // Error específico para 403
       if (response.status === 403) {
-        throw new Error('⚠️ El servidor rechazó la solicitud (403). El backend puede necesitar reiniciarse con los cambios de seguridad actualizados.');
+        throw new Error(' El servidor rechazó la solicitud (403). El backend puede necesitar reiniciarse con los cambios de seguridad actualizados.');
       }
       throw new Error(data.message || data.mensaje || 'Credenciales inválidas');
     }
@@ -287,8 +429,8 @@ export const loginUsuario = async (email: string, password: string): Promise<{ s
     // El backend puede devolver: { id, nombre, email, rol, token } o { usuario: {...}, token: ... }
     const usuarioData = data.usuario || data;
     
-    console.log('📥 Datos del usuario en login:', usuarioData);
-    console.log('📥 Rol en usuarioData:', usuarioData.rol);
+    console.log(' Datos del usuario en login:', usuarioData);
+    console.log(' Rol en usuarioData:', usuarioData.rol);
     
     // Normalizar rol: si es un número (ID), convertir a nombre
     let rolNormalizado: string | any = usuarioData.rol;
@@ -303,7 +445,7 @@ export const loginUsuario = async (email: string, password: string): Promise<{ s
       rolNormalizado = usuarioData.rol.toUpperCase();
     }
     
-    console.log('📥 Rol normalizado:', rolNormalizado);
+    console.log(' Rol normalizado:', rolNormalizado);
     
     // Asegurar que el usuario tiene toda la información necesaria
     const usuarioCompleto: Usuario = {
@@ -320,8 +462,8 @@ export const loginUsuario = async (email: string, password: string): Promise<{ s
       estado: usuarioData.estado || 'activo',
     };
     
-    console.log('✅ Usuario completo desde login:', usuarioCompleto);
-    console.log('✅ Rol del usuario:', usuarioCompleto.rol);
+    console.log(' Usuario completo desde login:', usuarioCompleto);
+    console.log(' Rol del usuario:', usuarioCompleto.rol);
     
     // Guardar token si la API lo devuelve
     if (data.token) {
@@ -373,7 +515,7 @@ export const registroMicroservicio = async (usuarioData: {
       fechaNacimiento: usuarioData.fechaNacimiento, // camelCase correcto
     };
     
-    console.log('📤 Enviando datos de registro:', payload);
+    console.log(' Enviando datos de registro:', payload);
     
     const response = await fetch(`/api/auth/register`, {
       method: 'POST',
@@ -383,18 +525,18 @@ export const registroMicroservicio = async (usuarioData: {
       body: JSON.stringify(payload),
     });
 
-    console.log('📥 Response status:', response.status);
-    console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+    console.log(' Response status:', response.status);
+    console.log(' Response headers:', Object.fromEntries(response.headers.entries()));
 
     const data = await parseResponseJson(response);
     
-    console.log('📥 Response data:', data);
+    console.log(' Response data:', data);
 
     if (!response.ok) {
       // Manejar específicamente el 500 (Error interno del servidor)
       if (response.status === 500) {
-        console.error('⚠️ Error 500 del servidor. Revisar logs del backend.');
-        throw new Error('⚠️ Error interno del servidor (500). El backend puede necesitar actualización o revisar los datos enviados.');
+        console.error(' Error 500 del servidor. Revisar logs del backend.');
+        throw new Error(' Error interno del servidor (500). El backend puede necesitar actualización o revisar los datos enviados.');
       }
       // Manejar específicamente el 409 (Conflict - Usuario duplicado)
       if (response.status === 409) {
@@ -414,7 +556,7 @@ export const registroMicroservicio = async (usuarioData: {
       message: 'Usuario registrado correctamente',
     };
   } catch (error: any) {
-    console.error('❌ Error registering usuario:', error);
+    console.error(' Error registering usuario:', error);
     return {
       success: false,
       message: error.message || 'Error al registrar usuario',
@@ -424,34 +566,66 @@ export const registroMicroservicio = async (usuarioData: {
 
 export const actualizarUsuario = async (id: number, usuario: Partial<Usuario>): Promise<{ success: boolean; usuario?: Usuario; message: string }> => {
   try {
-    console.log('📤 Actualizando usuario ID:', id, usuario);
+    console.log(' Actualizando usuario ID:', id);
+    console.log(' Datos a actualizar:', usuario);
+    
+    // Construir los headers de forma correcta
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Intentar agregar token si está disponible
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log(' Token incluido en headers');
+    } else {
+      console.log(' Sin token, intentando sin autenticación');
+    }
     
     const response = await fetch(`${MICROSERVICE_URL}/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(usuario),
     });
 
-    console.log('📥 Response status:', response.status);
-
-    const data = await parseResponseJson(response);
+    console.log(' Response status:', response.status);
+    
+    // Intentar parsear la respuesta incluso si no es JSON
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      data = { message: await response.text() };
+    }
+    
+    console.log(' Response data:', data);
 
     if (!response.ok) {
-      console.error('❌ Error al actualizar:', data);
-      throw new Error(data.message || data.mensaje || 'Error al actualizar usuario');
+      console.error(' Error al actualizar (Status ' + response.status + '):', data);
+      
+      if (response.status === 403) {
+        throw new Error('No tienes permisos para actualizar usuarios (403 Forbidden)');
+      }
+      if (response.status === 404) {
+        throw new Error('Usuario no encontrado (404)');
+      }
+      if (response.status === 400) {
+        throw new Error('Datos inválidos: ' + (data.message || data.error || 'Revisa los campos'));
+      }
+      
+      throw new Error(data.message || data.error || `Error ${response.status}: Error al actualizar usuario`);
     }
 
-    console.log('✅ Usuario actualizado:', data);
+    console.log(' Usuario actualizado:', data);
     
     return {
       success: true,
-      usuario: data,
-      message: 'Usuario actualizado correctamente',
+      usuario: data || usuario,
+      message: 'Usuario actualizado correctamente en la base de datos',
     };
   } catch (error: any) {
-    console.error('❌ Error updating usuario:', error);
+    console.error(' Error updating usuario:', error.message);
     return {
       success: false,
       message: error.message || 'Error al actualizar usuario',
@@ -459,23 +633,127 @@ export const actualizarUsuario = async (id: number, usuario: Partial<Usuario>): 
   }
 };
 
+/**
+ * Verifica si un usuario tiene pedidos asociados
+ */
+export const verificarUsuarioTienePedidos = async (usuarioId: number): Promise<{ success: boolean; tienePedidos: boolean; cantidad?: number; message: string }> => {
+  try {
+    console.log(' Verificando si usuario ID:', usuarioId, 'tiene pedidos');
+    
+    // Construir los headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Intentar agregar token si está disponible
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log(' Token incluido en headers');
+    }
+    
+    // Intentar buscar en la API de pedidos
+    // Endpoint esperado: /api/pedidos/usuario/{id} o /api/pedidos?usuario_id={id}
+    const endpoints = [
+      `/api/pedidos/usuario/${usuarioId}`,
+      `/api/pedidos?usuario_id=${usuarioId}`,
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log('   Intentando:', endpoint);
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers,
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const cantidad = Array.isArray(data) ? data.length : data.cantidad || data.count || 0;
+          const tienePedidos = cantidad > 0;
+          
+          console.log(`    Encontrado: Usuario tiene ${cantidad} pedidos`);
+          
+          return {
+            success: true,
+            tienePedidos,
+            cantidad,
+            message: tienePedidos ? `Usuario tiene ${cantidad} pedidos` : 'Usuario no tiene pedidos',
+          };
+        }
+      } catch (error) {
+        console.log('    Este endpoint no funciona, intentando siguiente...');
+      }
+    }
+    
+    // Si ningún endpoint funciona, asumir que no hay pedidos o que el microservicio no está disponible
+    console.log('  No se pudo verificar pedidos, asumiendo que no existen');
+    return {
+      success: true,
+      tienePedidos: false,
+      cantidad: 0,
+      message: 'No se encontraron pedidos (o microservicio no disponible)',
+    };
+  } catch (error: any) {
+    console.error(' Error verificando pedidos:', error.message);
+    // En caso de error, permitir que continúe (por seguridad, no bloquear borrado)
+    return {
+      success: false,
+      tienePedidos: false,
+      message: error.message || 'Error al verificar pedidos',
+    };
+  }
+};
+
 export const eliminarUsuario = async (id: number): Promise<{ success: boolean; message: string }> => {
   try {
+    console.log(' Eliminando usuario ID:', id);
+    
+    // Construir los headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Intentar agregar token si está disponible
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log(' Token incluido en headers');
+    } else {
+      console.log(' Sin token, intentando sin autenticación');
+    }
+    
     const response = await fetch(`${MICROSERVICE_URL}/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
     
-    if (!response.ok) throw new Error('Error al eliminar usuario');
+    console.log(' Response status:', response.status);
+    
+    if (!response.ok) {
+      let data: any;
+      try {
+        data = await response.json();
+      } catch {
+        data = { message: await response.text() };
+      }
+      
+      if (response.status === 403) {
+        throw new Error('No tienes permisos para eliminar usuarios (403 Forbidden)');
+      }
+      if (response.status === 404) {
+        throw new Error('Usuario no encontrado (404)');
+      }
+      
+      throw new Error(data.message || `Error ${response.status}: Error al eliminar usuario`);
+    }
     
     return {
       success: true,
-      message: 'Usuario eliminado correctamente',
+      message: 'Usuario eliminado correctamente de la base de datos',
     };
   } catch (error: any) {
-    console.error('Error deleting usuario:', error);
+    console.error(' Error deleting usuario:', error.message);
     return {
       success: false,
       message: error.message || 'Error al eliminar usuario',
