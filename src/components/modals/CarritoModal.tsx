@@ -1,55 +1,41 @@
+import { useState } from 'react';
 import { useCarrito } from '../../context/CarritoProvider';
 import { useAuth } from '../../context/AuthProvider';
-import type { Pedido } from '../../interfaces/pedido'; 
+import { crearPedido } from '../../utils/api'; // Importamos la función real
 import Swal from 'sweetalert2';
-import { loadPedidos, savePedidos } from '../../utils/storage'; 
 
 const CarritoModal = () => {
-  // 1. Obtener hooks
   const { carrito, limpiarCarrito, total, disminuirCantidad, incrementarCantidad, eliminarDelCarrito } = useCarrito();
   const { usuario } = useAuth();
+  const [procesando, setProcesando] = useState(false);
 
-  // 2. Mover TODA la lógica de creación del pedido DENTRO del handler
-  const handleFinalizarCompra = () => {
-    // El botón ya se encarga de abrir el login si el usuario es null,
-    // pero mantenemos esta guarda por si acaso.
-    if (!usuario) { 
-      return; 
+  const handleFinalizarCompra = async () => {
+    // Si no hay usuario, el botón abre el login (manejado por bootstrap)
+    if (!usuario) return;
+
+    setProcesando(true);
+
+    // Enviar los datos al backend
+    const resultado = await crearPedido(carrito, total);
+
+    setProcesando(false);
+
+    if (resultado.success) {
+      Swal.fire({
+        title: "¡Pedido Exitoso!",
+        text: `Tu pedido #${resultado.pedido.id} ha sido registrado correctamente.`,
+        icon: "success",
+        confirmButtonText: "Genial"
+      });
+      limpiarCarrito();
+      
+      // Cerrar el modal programáticamente
+      const btnClose = document.querySelector('#modalCarrito .btn-close') as HTMLElement;
+      if(btnClose) btnClose.click();
+      
+    } else {
+      Swal.fire("Error", `No se pudo procesar el pedido: ${resultado.message}`, "error");
     }
-
-    // --- Lógica de ID Auto-incremental ---
-    const pedidos = loadPedidos();
-    const maxId = pedidos.reduce((max, p) => p.id > max ? p.id : max, 0);
-    const nuevoId = maxId + 1;
-    // --- Fin de la lógica de ID ---
-
-    const nuevoPedido: Pedido = {
-    id: nuevoId,
-      fecha: new Date().toLocaleString('es-CL'),
-      cliente: {
-        id: usuario.id,
-        nombre: `${usuario.nombre} ${usuario.apellido}`,
-        email: usuario.email,
-        direccion: usuario.direccion, 
-        comuna: usuario.comuna,      
-        region: usuario.region        
-      },
-      items: carrito,
-      total: total
-    };
-    
-    // Guardar el pedido
-    pedidos.push(nuevoPedido);
-    savePedidos(pedidos);
-    
-    // Mostrar alerta y limpiar carrito
-    Swal.fire({
-      title: "¡Gracias por tu compra!",
-      text: `Tu pedido #${nuevoPedido.id} ha sido procesado.`,
-      icon: "success",
-      confirmButtonText: "Entendido"
-    });
-    limpiarCarrito();
   };
 
   return (
@@ -68,7 +54,6 @@ const CarritoModal = () => {
                 <table className="table table-hover align-middle text-center">
                   <thead className="table-light">
                     <tr>
-                      <th>Imagen</th>
                       <th>Producto</th>
                       <th>Cantidad</th>
                       <th>Precio Unitario</th>
@@ -79,39 +64,24 @@ const CarritoModal = () => {
                   <tbody>
                     {carrito.map(item => (
                       <tr key={item.id}>
-                        <td><img src={item.img} alt={item.nombre} width="50" className="rounded" /></td>
-                        <td>{item.nombre}</td>
                         <td>
-                          <div className="input-group input-group-sm" style={{ width: '120px', margin: 'auto' }}>
-                            <button 
-                              className="btn btn-outline-secondary" 
-                              type="button"
-                              onClick={() => disminuirCantidad(item.id)}
-                            >
-                              -
-                            </button>
+                          <div className="d-flex align-items-center justify-content-center">
+                            {item.img && <img src={item.img} alt={item.nombre} width="40" className="me-2 rounded" />}
+                            <span>{item.nombre}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="input-group input-group-sm justify-content-center" style={{width: '100px', margin: '0 auto'}}>
+                            <button className="btn btn-outline-secondary" onClick={() => disminuirCantidad(item.id)}>-</button>
                             <span className="form-control text-center">{item.cantidad}</span>
-                            <button 
-                              className="btn btn-outline-secondary" 
-                              type="button"
-                              onClick={() => incrementarCantidad(item.id)}
-                            >
-                              +
-                            </button>
+                            <button className="btn btn-outline-secondary" onClick={() => incrementarCantidad(item.id)}>+</button>
                           </div>
                         </td>
                         <td>${item.precio.toLocaleString('es-CL')}</td>
                         <td>${(item.precio * item.cantidad).toLocaleString('es-CL')}</td>
                         <td>
-                          <button 
-                            className="btn btn-sm btn-danger" 
-                            title="Eliminar producto"
-                            onClick={() => eliminarDelCarrito(item.id)}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
-                              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                              <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-                            </svg>
+                          <button className="btn btn-sm btn-danger" onClick={() => eliminarDelCarrito(item.id)}>
+                            <i className="bi bi-trash"></i> Eliminar
                           </button>
                         </td>
                       </tr>
@@ -128,14 +98,19 @@ const CarritoModal = () => {
             <button className="btn btn-secondary" data-bs-dismiss="modal">Seguir Comprando</button>
             <button 
               className="btn btn-success" 
-              id="btnFinalizarCompra"
-              disabled={carrito.length === 0}
+              disabled={carrito.length === 0 || procesando}
               onClick={usuario ? handleFinalizarCompra : undefined}
-              data-bs-dismiss={usuario ? "modal" : ""}
               data-bs-toggle={!usuario ? "modal" : ""}
               data-bs-target={!usuario ? "#loginModal" : ""}
             >
-              Finalizar Compra
+              {procesando ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2"/>
+                  Procesando...
+                </>
+              ) : (
+                'Finalizar Compra'
+              )}
             </button>
           </div>
         </div>

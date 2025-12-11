@@ -1,48 +1,48 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Producto } from '../interfaces/producto';
-import { fetchProductos } from '../utils/api';
+import { fetchProductos } from '../utils/api'; // Importamos la función real
 import ProductoCard from '../components/ProductoCard';
 
 const Productos = () => {
-  // --- Estados ---
-  // 1. Almacena la lista COMPLETA de productos (nuestra "fuente de verdad")
   const [todosLosProductos, setTodosLosProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   
-  // 2. Estados para los filtros
+  // Estados para filtros
   const [filtroBusqueda, setFiltroBusqueda] = useState('');
-  const [filtroCategoria, setFiltroCategoria] = useState('Todas'); // 'Todas' será el valor por defecto
+  const [filtroCategoria, setFiltroCategoria] = useState('Todas');
 
-  // --- Carga de Datos ---
+  // Cargar productos desde el Backend al iniciar
   useEffect(() => {
     const cargarProductos = async () => {
       setLoading(true);
-      const data = await fetchProductos();
-      setTodosLosProductos(data);
-      setLoading(false);
+      try {
+        const data = await fetchProductos(); // Llamada a la API real
+        setTodosLosProductos(data);
+      } catch (err) {
+        console.error("Error al cargar productos:", err);
+        setError('Hubo un problema al cargar el catálogo. Intenta refrescar la página.');
+      } finally {
+        setLoading(false);
+      }
     };
     cargarProductos();
-  }, []); // Se ejecuta solo una vez al montar el componente
+  }, []);
 
-  // --- Lógica de Filtrado ---
-
-  // 3. Obtenemos las categorías únicas de los productos (usando useMemo para eficiencia)
+  // Obtener categorías únicas dinámicamente
   const categorias = useMemo(() => {
     const setDeCategorias = new Set(todosLosProductos.map(p => p.categoria));
     return ['Todas', ...Array.from(setDeCategorias)];
   }, [todosLosProductos]);
 
-  // 4. Filtramos los productos basándonos en los estados (usando useMemo)
-  // Esta lista se recalcula SOLO si los productos o los filtros cambian
+  // Filtrar productos
   const productosFiltrados = useMemo(() => {
     let productos = [...todosLosProductos];
 
-    // Primero, filtrar por categoría
     if (filtroCategoria !== 'Todas') {
       productos = productos.filter(p => p.categoria === filtroCategoria);
     }
 
-    // Segundo, filtrar por búsqueda
     if (filtroBusqueda.trim() !== '') {
       productos = productos.filter(p => 
         p.nombre.toLowerCase().includes(filtroBusqueda.toLowerCase())
@@ -52,15 +52,12 @@ const Productos = () => {
     return productos;
   }, [todosLosProductos, filtroCategoria, filtroBusqueda]);
 
-
-  // --- Renderizado ---
   return (
     <div className="container my-5">
       <h2 className="text-center mb-4">Nuestro Catálogo</h2>
 
-      {/* 5. Barra de Búsqueda y Filtros */}
+      {/* Buscador y Filtros */}
       <div className="row mb-4 g-3 align-items-center">
-        {/* Barra de Búsqueda */}
         <div className="col-md-8">
           <input
             type="text"
@@ -71,38 +68,38 @@ const Productos = () => {
           />
         </div>
         
-        {/* Filtro de Categoría */}
         <div className="col-md-4">
-          <div className="input-group">
-            <label className="input-group-text" htmlFor="filtro-categoria">Categoría</label>
-            <select 
-              className="form-select" 
-              id="filtro-categoria"
-              value={filtroCategoria}
-              onChange={(e) => setFiltroCategoria(e.target.value)}
-            >
-              {categorias.map(categoria => (
-                <option key={categoria} value={categoria}>
-                  {categoria}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select 
+            className="form-select" 
+            value={filtroCategoria}
+            onChange={(e) => setFiltroCategoria(e.target.value)}
+          >
+            {categorias.map(categoria => (
+              <option key={categoria} value={categoria}>
+                {categoria}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
       
-      {/* 6. Lista de Productos Filtrados */}
+      {/* Lista de Productos */}
       {loading ? (
-        <div className="text-center">Cargando productos...</div>
+        <div className="text-center py-5">
+          <div className="spinner-border text-success" role="status"></div>
+          <p className="mt-2">Cargando productos frescos...</p>
+        </div>
+      ) : error ? (
+        <div className="alert alert-danger text-center">{error}</div>
       ) : (
         <div id="product-list" className="row g-4">
           {productosFiltrados.length > 0 ? (
             productosFiltrados.map(prod => (
-              <ProductoCard key={prod.codigo} producto={prod} />
+              <ProductoCard key={prod.id || prod.codigo} producto={prod} />
             ))
           ) : (
             <div className="col-12">
-              <p className="text-center text-muted">No se encontraron productos que coincidan con tu búsqueda.</p>
+              <p className="text-center text-muted">No se encontraron productos.</p>
             </div>
           )}
         </div>
