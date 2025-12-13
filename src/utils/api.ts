@@ -102,6 +102,20 @@ export const fetchUsuarios = async (): Promise<Usuario[]> => {
   }
 };
 
+// --- ESTA ES LA FUNCIÓN QUE FALTABA ---
+export const obtenerUsuarioPorId = async (id: number) => {
+  try {
+    const data = await handleResponse(await fetch(`${API_BASE_URL}/usuarios/${id}`, {
+      headers: getHeaders(true) // Requiere Token
+    }));
+    return { success: true, usuario: data };
+  } catch (error: any) {
+    console.error('Error obteniendo usuario:', error);
+    return { success: false, message: error.message };
+  }
+};
+// -------------------------------------
+
 export const eliminarUsuario = async (id: number) => {
   try {
     await handleResponse(await fetch(`${API_BASE_URL}/usuarios/${id}`, {
@@ -128,10 +142,12 @@ export const actualizarUsuario = async (id: number, usuario: Partial<Usuario>) =
 };
 
 export const verificarUsuarioTienePedidos = async (id: number) => {
-  // Stub temporal para evitar errores hasta que implementes pedidos por usuario
+  // Usamos 'id' en un console.log para que TypeScript no se queje de que no se usa
+  console.log('Verificando pedidos para usuario ID:', id); 
+  
+  // Stub temporal
   return { success: true, tienePedidos: false, cantidad: 0 };
 };
-
 
 // ==================== PRODUCTOS (Productos Service) ====================
 
