@@ -30,14 +30,22 @@ const getHeaders = (auth = false): HeadersInit => {
 const handleResponse = async (response: Response) => {
   if (!response.ok) {
     let mensaje = 'Error en la solicitud';
+    
+    // 1. Leemos el cuerpo UNA sola vez como texto
+    const errorText = await response.text();
+
+    // 2. Intentamos ver si es JSON
     try {
-      const errorData = await response.json();
+      const errorData = JSON.parse(errorText);
       mensaje = errorData.message || errorData.mensaje || mensaje;
     } catch {
-      mensaje = await response.text();
+      // 3. Si no era JSON, usamos el texto tal cual (puede ser el error HTML de Tomcat)
+      if (errorText) mensaje = errorText;
     }
+    
     throw new Error(`Error ${response.status}: ${mensaje}`);
   }
+  
   // Si la respuesta es exitosa pero no tiene contenido (ej: borrar algo)
   if (response.status === 204) return null;
   
@@ -256,4 +264,9 @@ export const fetchAdmins = async (): Promise<Usuario[]> => {
         (typeof u.rol === 'string' && u.rol.toUpperCase() === 'ADMIN') ||
         (typeof u.rol === 'object' && (u.rol as any).nombre === 'ADMIN')
     );
+};
+
+// El panel de admin busca "registrarUsuario", así que reutilizamos la función de registro existente
+export const registrarUsuario = async (datos: any) => {
+  return await registroMicroservicio(datos);
 };
