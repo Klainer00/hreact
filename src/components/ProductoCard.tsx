@@ -50,7 +50,8 @@ const ProductoCard = ({ producto }: Props) => {
     }, 5000); // 5 segundos
   };
   
-  const rutaImagen = producto.imagen.startsWith('../') ? producto.imagen.substring(3) : producto.imagen;
+  const imagen = producto.imagen || ''; // Aseguramos que sea un string vacío si es null/undefined
+  const rutaImagen = imagen.startsWith('../') ? imagen.substring(3) : imagen;
 
   return (
     <div className="col-lg-3 col-md-6">
