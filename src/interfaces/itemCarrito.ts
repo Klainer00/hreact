@@ -1,7 +1,7 @@
 export interface ItemCarrito {
-  id: string; 
+  id: string;
   nombre: string;
   precio: number;
-  img: string;
+  img?: string; // <-- CORRECCIÓN: Hacer la imagen opcional (string o undefined)
   cantidad: number;
 }
