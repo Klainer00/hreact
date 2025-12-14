@@ -50,7 +50,8 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
           item.id === producto.codigo ? { ...item, cantidad: item.cantidad + 1 } : item
         );
       } else {
-        const rutaImagen = producto.imagen.startsWith('../') ? producto.imagen.substring(3) : producto.imagen;
+        const imagen = producto.imagen || ''; // Aseguramos que sea un string vacío si es null/undefined
+        const rutaImagen = imagen.startsWith('../') ? imagen.substring(3) : imagen;
         return [...prev, {
           id: producto.codigo,
           nombre: producto.nombre,
@@ -71,10 +72,10 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
         );
       } else {
         return [...prev, {
-          id: producto.id.toString(),
+          id: producto.id ? producto.id.toString() : '', // <-- CORRECCIÓN DE ID
           nombre: producto.nombre,
           precio: producto.precio,
-          img: producto.imagen,
+          img: producto.imagen || '', // <-- CORRECCIÓN DE IMAGEN (si es necesario)
           cantidad: 1
         }];
       }
