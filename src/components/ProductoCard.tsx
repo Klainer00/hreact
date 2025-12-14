@@ -1,4 +1,4 @@
-import { useState } from 'react'; // <-- 1. IMPORTA 'useState'
+import { useState } from 'react';
 import Swal from 'sweetalert2';
 import type { Producto } from '../interfaces/producto';
 import { useCarrito } from '../context/CarritoProvider';
@@ -10,23 +10,17 @@ interface Props {
 const ProductoCard = ({ producto }: Props) => {
   const { agregarAlCarrito } = useCarrito();
   
-  // 2. ESTADO PARA CONTROLAR EL COOLDOWN DE LA ALERTA
   const [alertaEnCooldown, setAlertaEnCooldown] = useState(false);
 
   const handleAgregar = () => {
-    // 3. LA ACCIÓN DE AGREGAR AL CARRITO SIEMPRE SE EJECUTA
     agregarAlCarrito(producto);
 
-    // 4. SI LA ALERTA ESTÁ EN COOLDOWN, SALIMOS TEMPRANO
-    // (El producto ya se agregó, pero no mostramos la alerta)
     if (alertaEnCooldown) {
       return;
     }
 
-    // 5. SI NO ESTÁ EN COOLDOWN, ACTIVAMOS EL COOLDOWN
     setAlertaEnCooldown(true);
 
-    // 6. MOSTRAMOS LA ALERTA (con 5 segundos)
     Swal.fire({
       title: "¡Producto Agregado!",
       text: `"${producto.nombre}" se ha añadido a tu carrito.`,
@@ -34,7 +28,7 @@ const ProductoCard = ({ producto }: Props) => {
       toast: true,
       position: "bottom-end", 
       showConfirmButton: false,
-      timer: 5000, // <-- 7. CAMBIADO A 5 SEGUNDOS
+      timer: 5000,
       timerProgressBar: true,
       didOpen: (toast) => {
         toast.onmouseenter = Swal.stopTimer;
@@ -42,16 +36,15 @@ const ProductoCard = ({ producto }: Props) => {
       }
     });
     
-    // 8. DESPUÉS DE 5 SEGUNDOS, RESETEAMOS EL COOLDOWN
-    // Esto permite que la próxima vez que el usuario haga clic
-    // (después de 5s) se vuelva a mostrar la alerta.
     setTimeout(() => {
       setAlertaEnCooldown(false);
-    }, 5000); // 5 segundos
+    }, 5000);
   };
   
-  const imagen = producto.imagen || ''; // Aseguramos que sea un string vacío si es null/undefined
-  const rutaImagen = imagen.startsWith('../') ? imagen.substring(3) : imagen;
+  // CORRECCIÓN DE IMAGEN: Manejo de null/undefined y src=""
+  const imagen = producto.imagen || '';
+  const rutaImagenBase = imagen.startsWith('../') ? imagen.substring(3) : imagen;
+  const rutaImagen = rutaImagenBase === '' ? undefined : rutaImagenBase; // undefined para evitar src=""
 
   return (
     <div className="col-lg-3 col-md-6">
@@ -64,7 +57,6 @@ const ProductoCard = ({ producto }: Props) => {
             <button 
               className="btn btn-success add-to-cart" 
               onClick={handleAgregar}
-              // IMPORTANTE: El botón ya NO tiene la propiedad "disabled"
             >
               Añadir al Carrito
             </button>
