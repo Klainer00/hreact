@@ -42,18 +42,29 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
   const totalItems = cantidadTotal; // Alias
 
   // --- Funciones de mutación ---
+  
+  // CORRECCIÓN APLICADA: Lógica, Tipos y Manejo de Imagen
   const agregarAlCarrito = (producto: Producto) => {
     setCarrito(prev => {
-      const existente = prev.find(item => item.id === producto.codigo);
+      // 1. CORRECCIÓN DE TIPOS Y LÓGICA: Convertir el ID numérico del producto a string
+      const productoIdString = producto.id ? producto.id.toString() : ''; 
+      
+      // 2. CORRECCIÓN DE LÓGICA: Usar el ID real del producto para buscar en el carrito
+      const existente = prev.find(item => item.id === productoIdString); 
+      
       if (existente) {
         return prev.map(item =>
-          item.id === producto.codigo ? { ...item, cantidad: item.cantidad + 1 } : item
+          // Usar el ID real para incrementar la cantidad
+          item.id === productoIdString ? { ...item, cantidad: item.cantidad + 1 } : item
         );
       } else {
-        const imagen = producto.imagen || ''; // Aseguramos que sea un string vacío si es null/undefined
+        // 3. CORRECCIÓN DE TYPEERROR: Manejar imagen nula/undefined
+        const imagen = producto.imagen || '';
         const rutaImagen = imagen.startsWith('../') ? imagen.substring(3) : imagen;
+        
         return [...prev, {
-          id: producto.codigo,
+          // Usar el ID real (como string) para el nuevo item
+          id: productoIdString, 
           nombre: producto.nombre,
           precio: producto.precio,
           img: rutaImagen,
@@ -63,6 +74,7 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  // CORRECCIÓN APLICADA: Manejo de ID y Nulidad de Imagen
   const agregarItem = (producto: Producto) => {
     setCarrito(prev => {
       const existente = prev.find(item => Number(item.id) === producto.id);
@@ -71,11 +83,15 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
           Number(item.id) === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
         );
       } else {
+        // Manejo de imagen nula/undefined
+        const imagen = producto.imagen || '';
+        const rutaImagen = imagen.startsWith('../') ? imagen.substring(3) : imagen;
+
         return [...prev, {
-          id: producto.id ? producto.id.toString() : '', // <-- CORRECCIÓN DE ID
+          id: producto.id ? producto.id.toString() : '', // Aseguramos que el ID exista y sea string
           nombre: producto.nombre,
           precio: producto.precio,
-          img: producto.imagen || '', // <-- CORRECCIÓN DE IMAGEN (si es necesario)
+          img: rutaImagen, // Usamos la ruta segura
           cantidad: 1
         }];
       }
