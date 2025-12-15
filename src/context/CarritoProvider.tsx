@@ -63,7 +63,7 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
         );
       } else {
         // 2. CORRECCIÓN DE TYPEERROR: Manejar imagen nula/undefined y src=""
-        const imagen = producto.imagen || '';
+        const imagen = producto.imagenUrl || '';
         const rutaImagenBase = imagen.startsWith('../') ? imagen.substring(3) : imagen;
         const rutaImagen = rutaImagenBase === '' ? undefined : rutaImagenBase; // undefined para evitar src=""
         
@@ -77,7 +77,9 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
         }];
       }
     });
-  };
+    
+    return true; // Indica que la operación fue exitosa
+  };  
 
   // CORRECCIÓN: Manejo de ID y Nulidad de Imagen
   const agregarItem = (producto: Producto) => {
