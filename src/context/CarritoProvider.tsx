@@ -7,8 +7,8 @@ import { loadCarrito, saveCarrito } from '../utils/storage';
 interface CarritoContextType {
   items: ItemCarrito[];
   carrito: ItemCarrito[];
-  agregarItem: (producto: Producto) => boolean; // Cambiado a boolean
-  agregarAlCarrito: (producto: Producto) => boolean; // Cambiado a boolean
+  agregarItem: (producto: Producto) => boolean;
+  agregarAlCarrito: (producto: Producto) => boolean;
   removerItem: (id: number) => void;
   eliminarDelCarrito: (id: string) => void;
   actualizarCantidad: (id: number, cantidad: number) => void;
@@ -43,7 +43,6 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
 
   // --- Funciones de mutación ---
   
-  // CORRECCIÓN: Lógica, Tipos y Manejo de Imagen
   const agregarAlCarrito = (producto: Producto): boolean => {
     const productoIdString = producto.id ? producto.id.toString() : ''; 
     const existente = carrito.find(item => item.id === productoIdString); 
@@ -71,7 +70,8 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
           nombre: producto.nombre,
           precio: producto.precio,
           img: rutaImagen,
-          cantidad: 1
+          cantidad: 1,
+          stock: producto.stock // <<-- AHORA GUARDAMOS EL STOCK
         }];
       }
     });
@@ -79,12 +79,11 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
     return true; // Indica que la operación fue exitosa
   };
 
-  // CORRECCIÓN: Manejo de ID y Nulidad de Imagen
   const agregarItem = (producto: Producto): boolean => {
     const productoIdString = producto.id ? producto.id.toString() : ''; 
     const existente = carrito.find(item => item.id === productoIdString); 
     
-    // 1. VALIDACIÓN DE STOCK: Si ya existe y la cantidad actual es igual o mayor al stock, no se agrega.
+    // 1. VALIDACIÓN DE STOCK
     if (existente && existente.cantidad >= producto.stock) {
       return false; // Indica que falló por stock
     }
@@ -107,7 +106,8 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
           nombre: producto.nombre,
           precio: producto.precio,
           img: rutaImagen,
-          cantidad: 1
+          cantidad: 1,
+          stock: producto.stock // <<-- AHORA GUARDAMOS EL STOCK
         }];
       }
     });
@@ -116,21 +116,20 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const incrementarCantidad = (id: string) => {
-    setCarrito(prev => {
-      const itemExistente = prev.find(item => item.id === id);
-      
-      // NOTA: La validación de stock al incrementar es más compleja aquí, ya que el itemCarrito
-      // no contiene el stock del producto original. Para una solución completa, el itemCarrito
-      // debería almacenar el stock o se debería re-consultar la API.
-      // Por ahora, la validación principal se hace en 'agregarAlCarrito'.
-      
-      if (itemExistente) {
-        return prev.map(item =>
-          item.id === id ? { ...item, cantidad: item.cantidad + 1 } : item
-        );
-      }
-      return prev;
-    });
+    setCarrito(prev =>
+      prev.map(item => {
+        if (item.id === id) {
+          // Validar si la nueva cantidad excede el stock
+          if (item.cantidad < item.stock) {
+            return { ...item, cantidad: item.cantidad + 1 };
+          } else {
+            // Si excede, no se incrementa
+            return item;
+          }
+        }
+        return item;
+      })
+    );
   };
 
   const disminuirCantidad = (id: string) => {
