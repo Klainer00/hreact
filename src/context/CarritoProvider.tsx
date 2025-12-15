@@ -7,8 +7,8 @@ import { loadCarrito, saveCarrito } from '../utils/storage';
 interface CarritoContextType {
   items: ItemCarrito[];
   carrito: ItemCarrito[];
-  agregarItem: (producto: Producto) => void;
-  agregarAlCarrito: (producto: Producto) => void;
+  agregarItem: (producto: Producto) => boolean; // Cambiado a boolean
+  agregarAlCarrito: (producto: Producto) => boolean; // Cambiado a boolean
   removerItem: (id: number) => void;
   eliminarDelCarrito: (id: string) => void;
   actualizarCantidad: (id: number, cantidad: number) => void;
@@ -44,19 +44,24 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
   // --- Funciones de mutación ---
   
   // CORRECCIÓN: Lógica, Tipos y Manejo de Imagen
-  const agregarAlCarrito = (producto: Producto) => {
+  const agregarAlCarrito = (producto: Producto): boolean => {
+    const productoIdString = producto.id ? producto.id.toString() : ''; 
+    const existente = carrito.find(item => item.id === productoIdString); 
+    
+    // 1. VALIDACIÓN DE STOCK: Si ya existe y la cantidad actual es igual o mayor al stock, no se agrega.
+    if (existente && existente.cantidad >= producto.stock) {
+      return false; // Indica que falló por stock
+    }
+    
     setCarrito(prev => {
-      // 1. CORRECCIÓN DE TIPOS Y LÓGICA: Usar ID real y convertir a string
-      const productoIdString = producto.id ? producto.id.toString() : ''; 
-      
-      const existente = prev.find(item => item.id === productoIdString); 
-      
       if (existente) {
+        // 2. Incrementa la cantidad
         return prev.map(item =>
           item.id === productoIdString ? { ...item, cantidad: item.cantidad + 1 } : item
         );
       } else {
-        // 2. CORRECCIÓN DE TYPEERROR: Manejar imagen nula/undefined y src=""
+        // 3. Agrega el nuevo producto
+        // Manejo de imagen nula/undefined y src=""
         const imagen = producto.imagen || '';
         const rutaImagenBase = imagen.startsWith('../') ? imagen.substring(3) : imagen;
         const rutaImagen = rutaImagenBase === '' ? undefined : rutaImagenBase; // undefined para evitar src=""
@@ -70,39 +75,62 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
         }];
       }
     });
+    
+    return true; // Indica que la operación fue exitosa
   };
 
   // CORRECCIÓN: Manejo de ID y Nulidad de Imagen
-  const agregarItem = (producto: Producto) => {
+  const agregarItem = (producto: Producto): boolean => {
+    const productoIdString = producto.id ? producto.id.toString() : ''; 
+    const existente = carrito.find(item => item.id === productoIdString); 
+    
+    // 1. VALIDACIÓN DE STOCK: Si ya existe y la cantidad actual es igual o mayor al stock, no se agrega.
+    if (existente && existente.cantidad >= producto.stock) {
+      return false; // Indica que falló por stock
+    }
+    
     setCarrito(prev => {
-      const existente = prev.find(item => Number(item.id) === producto.id);
       if (existente) {
+        // 2. Incrementa la cantidad
         return prev.map(item =>
-          Number(item.id) === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
+          item.id === productoIdString ? { ...item, cantidad: item.cantidad + 1 } : item
         );
       } else {
+        // 3. Agrega el nuevo producto
         // Manejo de imagen nula/undefined y src=""
         const imagen = producto.imagen || '';
         const rutaImagenBase = imagen.startsWith('../') ? imagen.substring(3) : imagen;
-        const rutaImagen = rutaImagenBase === '' ? undefined : rutaImagenBase;
-
+        const rutaImagen = rutaImagenBase === '' ? undefined : rutaImagenBase; // undefined para evitar src=""
+        
         return [...prev, {
-          id: producto.id ? producto.id.toString() : '', // Aseguramos que el ID exista y sea string
+          id: productoIdString, 
           nombre: producto.nombre,
           precio: producto.precio,
-          img: rutaImagen, // Usamos la ruta segura
+          img: rutaImagen,
           cantidad: 1
         }];
       }
     });
+    
+    return true; // Indica que la operación fue exitosa
   };
 
   const incrementarCantidad = (id: string) => {
-    setCarrito(prev =>
-      prev.map(item =>
-        item.id === id ? { ...item, cantidad: item.cantidad + 1 } : item
-      )
-    );
+    setCarrito(prev => {
+      const itemExistente = prev.find(item => item.id === id);
+      
+      // NOTA: La validación de stock al incrementar es más compleja aquí, ya que el itemCarrito
+      // no contiene el stock del producto original. Para una solución completa, el itemCarrito
+      // debería almacenar el stock o se debería re-consultar la API.
+      // Por ahora, la validación principal se hace en 'agregarAlCarrito'.
+      
+      if (itemExistente) {
+        return prev.map(item =>
+          item.id === id ? { ...item, cantidad: item.cantidad + 1 } : item
+        );
+      }
+      return prev;
+    });
   };
 
   const disminuirCantidad = (id: string) => {
