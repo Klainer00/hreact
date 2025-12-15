@@ -13,7 +13,8 @@ const ProductoCard = ({ producto }: Props) => {
   const [alertaEnCooldown, setAlertaEnCooldown] = useState(false);
 
   const handleAgregar = () => {
-    agregarAlCarrito(producto);
+    // Llama a la función y guarda el resultado (true si se agregó, false si no)
+    const agregadoExitoso = agregarAlCarrito(producto);
 
     if (alertaEnCooldown) {
       return;
@@ -21,20 +22,39 @@ const ProductoCard = ({ producto }: Props) => {
 
     setAlertaEnCooldown(true);
 
-    Swal.fire({
-      title: "¡Producto Agregado!",
-      text: `"${producto.nombre}" se ha añadido a tu carrito.`,
-      icon: "success",
-      toast: true,
-      position: "bottom-end", 
-      showConfirmButton: false,
-      timer: 5000,
-      timerProgressBar: true,
-      didOpen: (toast) => {
-        toast.onmouseenter = Swal.stopTimer;
-        toast.onmouseleave = Swal.resumeTimer;
-      }
-    });
+    if (agregadoExitoso) {
+      // Alerta de éxito
+      Swal.fire({
+        title: "¡Producto Agregado!",
+        text: `"${producto.nombre}" se ha añadido a tu carrito.`,
+        icon: "success",
+        toast: true,
+        position: "bottom-end", 
+        showConfirmButton: false,
+        timer: 5000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+          toast.onmouseenter = Swal.stopTimer;
+          toast.onmouseleave = Swal.resumeTimer;
+        }
+      });
+    } else {
+      // Alerta de stock insuficiente
+      Swal.fire({
+        title: "Stock Insuficiente",
+        text: `Solo quedan ${producto.stock} unidades de "${producto.nombre}" en stock. No puedes agregar más.`,
+        icon: "warning",
+        toast: true,
+        position: "bottom-end", 
+        showConfirmButton: false,
+        timer: 5000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+          toast.onmouseenter = Swal.stopTimer;
+          toast.onmouseleave = Swal.resumeTimer;
+        }
+      });
+    }
     
     setTimeout(() => {
       setAlertaEnCooldown(false);

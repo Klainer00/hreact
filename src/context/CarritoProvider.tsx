@@ -8,8 +8,8 @@ import Swal from 'sweetalert2';
 interface CarritoContextType {
   items: ItemCarrito[];
   carrito: ItemCarrito[];
-  agregarItem: (producto: Producto) => void;
-  agregarAlCarrito: (producto: Producto) => void;
+  agregarItem: (producto: Producto) => boolean;
+  agregarAlCarrito: (producto: Producto) => boolean;
   removerItem: (id: number) => void;
   eliminarDelCarrito: (id: string) => void;
   actualizarCantidad: (id: number, cantidad: number) => void;
@@ -51,48 +51,46 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
 
   // --- Funciones de mutación ---
   
-  // CORRECCIÓN: Lógica, Tipos y Manejo de Imagen + Validación de Stock
+  // CORRECCIÓN: Lógica, Tipos y Manejo de Imagen
   const agregarAlCarrito = (producto: Producto) => {
     setCarrito(prev => {
-      // 1. CORRECCIÓN DE TIPOS Y LÓGICA: Usar ID real y convertir a string
-      const productoIdString = producto.id ? producto.id.toString() : ''; 
-      
-      const existente = prev.find(item => item.id === productoIdString); 
+      const productoIdString = String(producto.id);
+      const existente = prev.find(item => item.id === productoIdString);
       
       if (existente) {
-        // Validar que no exceda el stock disponible
-        if (existente.cantidad >= producto.stock) {
-          Swal.fire({
-            title: 'Stock insuficiente',
-            text: `Solo hay ${producto.stock} unidades disponibles de "${producto.nombre}"`,
-            icon: 'warning',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000
-          });
-          return prev; // No modificar el carrito
-        }
-        
         return prev.map(item =>
           item.id === productoIdString ? { ...item, cantidad: item.cantidad + 1 } : item
         );
       } else {
-        // Verificar que haya stock disponible
-        if (producto.stock <= 0) {
-          Swal.fire({
-            title: 'Sin stock',
-            text: `"${producto.nombre}" no está disponible en este momento`,
-            icon: 'error',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000
-          });
-          return prev; // No agregar al carrito
-        }
-        
         // 2. CORRECCIÓN DE TYPEERROR: Manejar imagen nula/undefined y src=""
+        const imagen = producto.imagen || '';
+        const rutaImagenBase = imagen.startsWith('../') ? imagen.substring(3) : imagen;
+        const rutaImagen = rutaImagenBase === '' ? undefined : rutaImagenBase; // undefined para evitar src=""
+        
+        return [...prev, {
+          id: productoIdString, 
+          nombre: producto.nombre,
+          precio: producto.precio,
+          img: rutaImagen,
+          cantidad: 1,
+          stock: producto.stock // <<-- AHORA GUARDAMOS EL STOCK
+        }];
+      }
+    });
+  };
+
+  // CORRECCIÓN: Manejo de ID y Nulidad de Imagen
+  const agregarItem = (producto: Producto) => {
+    setCarrito(prev => {
+      const productoIdString = String(producto.id);
+      const existente = prev.find(item => item.id === productoIdString);
+      
+      if (existente) {
+        return prev.map(item =>
+          item.id === productoIdString ? { ...item, cantidad: item.cantidad + 1 } : item
+        );
+      } else {
+        // Manejo de imagen nula/undefined y src=""
         const imagen = producto.imagenUrl || '';
         const rutaImagenBase = imagen.startsWith('../') ? imagen.substring(3) : imagen;
         const rutaImagen = rutaImagenBase === '' ? undefined : rutaImagenBase; // undefined para evitar src=""
@@ -102,92 +100,21 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
           nombre: producto.nombre,
           precio: producto.precio,
           img: rutaImagen,
-          cantidad: 1
+          cantidad: 1,
+          stock: producto.stock // <<-- AHORA GUARDAMOS EL STOCK
         }];
       }
     });
-  };
-
-  // CORRECCIÓN: Manejo de ID y Nulidad de Imagen + Validación de Stock
-  const agregarItem = (producto: Producto) => {
-    setCarrito(prev => {
-      const existente = prev.find(item => Number(item.id) === producto.id);
-      if (existente) {
-        // Validar stock antes de incrementar
-        if (existente.cantidad >= producto.stock) {
-          Swal.fire({
-            title: 'Stock insuficiente',
-            text: `Solo hay ${producto.stock} unidades disponibles de "${producto.nombre}"`,
-            icon: 'warning',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000
-          });
-          return prev;
-        }
-        
-        return prev.map(item =>
-          Number(item.id) === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
-        );
-      } else {
-        // Verificar que haya stock disponible
-        if (producto.stock <= 0) {
-          Swal.fire({
-            title: 'Sin stock',
-            text: `"${producto.nombre}" no está disponible en este momento`,
-            icon: 'error',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000
-          });
-          return prev;
-        }
-        
-        // Manejo de imagen nula/undefined y src=""
-        const imagen = producto.imagenUrl || '';
-        const rutaImagenBase = imagen.startsWith('../') ? imagen.substring(3) : imagen;
-        const rutaImagen = rutaImagenBase === '' ? undefined : rutaImagenBase;
-
-        return [...prev, {
-          id: producto.id ? producto.id.toString() : '', // Aseguramos que el ID exista y sea string
-          nombre: producto.nombre,
-          precio: producto.precio,
-          img: rutaImagen, // Usamos la ruta segura
-          cantidad: 1
-        }];
-      }
-    });
+    
+    return true; // Indica que la operación fue exitosa
   };
 
   const incrementarCantidad = (id: string) => {
-    // Buscar el producto en la lista de productos disponibles
-    const producto = productosDisponibles.find(p => p.id?.toString() === id);
-    
-    setCarrito(prev => {
-      const item = prev.find(i => i.id === id);
-      
-      if (item && producto) {
-        // Validar que no exceda el stock
-        if (item.cantidad >= producto.stock) {
-          Swal.fire({
-            title: 'Stock insuficiente',
-            text: `Solo hay ${producto.stock} unidades disponibles`,
-            icon: 'warning',
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000
-          });
-          return prev; // No modificar
-        }
-      }
-      
-      return prev.map(item =>
+    setCarrito(prev =>
+      prev.map(item =>
         item.id === id ? { ...item, cantidad: item.cantidad + 1 } : item
-      );
-    });
+      )
+    );
   };
 
   const disminuirCantidad = (id: string) => {
