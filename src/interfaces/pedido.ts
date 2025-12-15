@@ -1,16 +1,18 @@
-import type { ItemCarrito } from './itemCarrito'; 
+export interface DetallePedido {
+  productoId: number;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+}
 
 export interface Pedido {
   id: number;
+  usuarioId: number;
   fecha: string;
-  cliente: {
-    id: number;
-    nombre: string;
-    email: string;
-    direccion: string;
-    comuna: string;
-    region: string;
-  };
-  items: ItemCarrito[];
   total: number;
+  estado: string;
+  direccionEnvio?: string;
+  comunaEnvio?: string;
+  regionEnvio?: string;
+  detalles: DetallePedido[];
 }

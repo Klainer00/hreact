@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { Pedido } from '../../interfaces/pedido';
+import { fetchPedidos } from '../../utils/api';
 import { loadPedidos } from '../../utils/storage';
 import ModalPedidoDetalle from '../../components/modals/ModalPedidoDetalle'; // <-- 1. Importar modal
+import Swal from 'sweetalert2';
 
 const AdminPedidos = () => {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -11,10 +13,44 @@ const AdminPedidos = () => {
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<Pedido | null>(null);
 
   useEffect(() => {
-    setLoading(true);
-    const pedidosGuardados = loadPedidos();
-    setPedidos(pedidosGuardados.reverse()); 
-    setLoading(false);
+    const cargarPedidos = async () => {
+      try {
+        setLoading(true);
+        console.log('📦 Cargando pedidos desde la API como ADMIN...');
+        console.log('🔑 Token presente:', !!localStorage.getItem('authToken'));
+        
+        // Cargar desde la API con parámetro isAdmin=true
+        const data = await fetchPedidos(true);
+        console.log('✅ Pedidos cargados:', data.length, 'pedidos');
+        console.log('📋 Datos:', data);
+        
+        // Guardar en localStorage también
+        if (data.length > 0) {
+          localStorage.setItem('pedidos', JSON.stringify(data));
+        }
+        
+        setPedidos(data.reverse()); // Mostrar los más recientes primero
+      } catch (error) {
+        console.error('❌ Error cargando pedidos:', error);
+        
+        // Si hay error, intentar cargar desde localStorage
+        const pedidosGuardados = loadPedidos();
+        console.log('💾 Pedidos desde localStorage:', pedidosGuardados.length);
+        setPedidos(pedidosGuardados.reverse());
+        
+        if (pedidosGuardados.length === 0) {
+          await Swal.fire({
+            title: 'Error',
+            text: 'No se pudieron cargar los pedidos. Verifica que hayas iniciado sesión correctamente.',
+            icon: 'warning'
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    cargarPedidos();
   }, []);
 
   if (loading) {
@@ -38,18 +74,28 @@ const AdminPedidos = () => {
                 <th>Fecha</th>
                 <th>Cliente</th>
                 <th>Total</th>
-                <th>Acciones</th> {/* <-- 3. Nueva columna */}
+                <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {pedidos.map(pedido => (
                 <tr key={pedido.id}>
                   <td>{pedido.id}</td>
-                  <td>{pedido.fecha}</td>
-                  <td>{pedido.cliente.nombre}</td>
-                  <td>${pedido.total.toLocaleString('es-CL')}</td>
+                  <td>{new Date(pedido.fecha).toLocaleDateString('es-CL')}</td>
+                  <td>Usuario ID: {pedido.usuarioId}</td>
+                  <td>${pedido.total?.toLocaleString('es-CL') || '0'}</td>
                   <td>
-                    {/* 4. Botón para abrir modal */}
+                    <span className={`badge ${
+                      pedido.estado === 'ENTREGADO' ? 'bg-success' :
+                      pedido.estado === 'CANCELADO' ? 'bg-danger' :
+                      pedido.estado === 'EN_CAMINO' ? 'bg-info' :
+                      'bg-warning'
+                    }`}>
+                      {pedido.estado || 'PENDIENTE'}
+                    </span>
+                  </td>
+                  <td>
                     <button 
                       className="btn btn-primary btn-sm"
                       onClick={() => setPedidoSeleccionado(pedido)}

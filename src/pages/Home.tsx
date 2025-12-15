@@ -38,7 +38,7 @@ const Home = () => {
         ) : (
           <div className="row g-4">
             {productos.map(prod => (
-              <ProductoCard key={prod.codigo} producto={prod} />
+              <ProductoCard key={prod.id} producto={prod} />
             ))}
           </div>
         )}

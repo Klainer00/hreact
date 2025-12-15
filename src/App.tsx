@@ -12,6 +12,7 @@ import DetalleBlog1 from './pages/DetalleBlog1';
 import DetalleBlog2 from './pages/DetalleBlog2';
 import DetalleBlog3 from './pages/DetalleBlog3';
 import Perfil from './pages/Perfil';
+import TestConexion from './pages/TestConexion';
 
 
 // Páginas de Admin
@@ -37,6 +38,7 @@ function App() {
         <Route path="detalle-blog-1.html" element={<DetalleBlog1 />} />
         <Route path="detalle-blog-2.html" element={<DetalleBlog2 />} />
         <Route path="detalle-blog-3.html" element={<DetalleBlog3 />} />
+        <Route path="test-conexion.html" element={<TestConexion />} />
       </Route>
 
       {/* --- Rutas de Admin --- */}

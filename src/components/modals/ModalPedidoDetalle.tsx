@@ -21,48 +21,58 @@ const ModalPedidoDetalle = ({ pedido, onClose }: Props) => {
           </div>
           <div className="modal-body">
             
-            {/* 1. Información del Cliente */}
-            <h4>Información del Cliente</h4>
-            <ul className="list-group list-group-flush mb-4">
-              <li className="list-group-item"><strong>Cliente:</strong> {pedido.cliente.nombre}</li>
-              <li className="list-group-item"><strong>Email:</strong> {pedido.cliente.email}</li>
-              <li className="list-group-item"><strong>Fecha del Pedido:</strong> {pedido.fecha}</li>
-            </ul>
-            
-            {/* 2. Dirección de Envío */}
-            <h4>Dirección de Envío</h4>
-            <address className="list-group-item">
-              {pedido.cliente.direccion}<br/>
-              {pedido.cliente.comuna}<br/>
-              {pedido.cliente.region}
-            </address>
+            <div className="row mb-4">
+              <div className="col-md-6">
+                <h6 className="text-muted">Información del Pedido</h6>
+                <ul className="list-unstyled">
+                  <li><strong>Usuario ID:</strong> {pedido.usuarioId}</li>
+                  <li><strong>Fecha:</strong> {new Date(pedido.fecha).toLocaleString('es-CL')}</li>
+                  <li><strong>Estado:</strong> <span className={`badge ${
+                    pedido.estado === 'ENTREGADO' ? 'bg-success' :
+                    pedido.estado === 'CANCELADO' ? 'bg-danger' :
+                    pedido.estado === 'EN_CAMINO' ? 'bg-info' :
+                    'bg-warning'
+                  }`}>{pedido.estado || 'PENDIENTE'}</span></li>
+                </ul>
+              </div>
+              
+              {pedido.direccionEnvio && (
+                <div className="col-md-6">
+                  <h6 className="text-muted">Dirección de Envío</h6>
+                  <address>
+                    {pedido.direccionEnvio}<br/>
+                    {pedido.comunaEnvio}<br/>
+                    {pedido.regionEnvio}
+                  </address>
+                </div>
+              )}
+            </div>
 
-            {/* 3. Items del Pedido */}
-            <h4 className="mt-4">Items Comprados</h4>
+            <h6 className="text-muted mb-3">Productos del Pedido</h6>
             <div className="table-responsive">
               <table className="table table-sm table-striped">
                 <thead>
                   <tr>
-                    <th>Producto</th>
-                    <th>Precio Unit.</th>
+                    <th>Producto ID</th>
                     <th>Cantidad</th>
+                    <th>Precio Unit.</th>
                     <th>Subtotal</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pedido.items.map(item => (
-                    <tr key={item.id}>
-                      <td>{item.nombre}</td>
-                      <td>${item.precio.toLocaleString('es-CL')}</td>
-                      <td>x {item.cantidad}</td>
-                      <td>${(item.precio * item.cantidad).toLocaleString('es-CL')}</td>
+                  {pedido.detalles?.map((detalle, index) => (
+                    <tr key={index}>
+                      <td>Producto #{detalle.productoId}</td>
+                      <td>{detalle.cantidad}</td>
+                      <td>${detalle.precioUnitario?.toLocaleString('es-CL') || '0'}</td>
+                      <td>${((detalle.precioUnitario || 0) * detalle.cantidad).toLocaleString('es-CL')}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="fw-bold">
-                    <td colSpan={3} className="text-end">Total Pagado:</td>
-                    <td>${pedido.total.toLocaleString('es-CL')}</td>
+                    <td colSpan={3} className="text-end">Total:</td>
+                    <td>${pedido.total?.toLocaleString('es-CL') || '0'}</td>
                   </tr>
                 </tfoot>
               </table>

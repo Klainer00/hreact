@@ -24,54 +24,20 @@ const LoginModal = () => {
       const response = await loginUsuario(email, password);
 
       if (response.success && response.usuario) {
-        let usuario = response.usuario;
-        
-        // Guardar el token si viene en la respuesta
-        if (response.token) {
-          usuario = { ...usuario, token: response.token };
-          console.log('✅ Token agregado al usuario:', response.token.substring(0, 20) + '...');
-        }
-        
-        console.log('Usuario después del login:', usuario);
-        console.log('Rol del usuario (raw):', usuario.rol);
-        console.log('Tipo de rol:', typeof usuario.rol);
-        
-        // Obtener datos completos del usuario
-        console.log('Obteniendo datos completos del usuario');
-        const completoResponse = await obtenerUsuarioPorId(usuario.id);
-        if (completoResponse.success && completoResponse.usuario) {
-          usuario = completoResponse.usuario;
-          console.log('Datos completos obtenidos:', usuario);
-          console.log('Rol completo (raw):', usuario.rol);
-          console.log('Tipo de rol:', typeof usuario.rol);
-        }
-        
-        // Determinar si es admin ANTES de hacer login
-        // El backend puede retornar: "ADMIN", "Administrador", 1 (ID), o directamente el objeto rol
-        const rolValue = usuario.rol;
-        
-        // Función auxiliar para extraer el nombre del rol
-        const getRolName = (rol: any): string => {
-          if (typeof rol === 'string') {
-            return rol.toUpperCase();
-          }
-          if (typeof rol === 'number') {
-            const rolMap: { [key: number]: string } = { 1: 'ADMIN', 2: 'USUARIO', 3: 'VENDEDOR' };
-            return rolMap[rol] || 'USUARIO';
-          }
-          if (typeof rol === 'object' && rol !== null && 'nombre' in rol) {
-            return String(rol.nombre).toUpperCase();
-          }
-          return 'USUARIO';
+        // El backend ya devuelve el token y rol en la respuesta
+        const usuario = {
+          ...response.usuario,
+          token: response.token,
+          rol: response.rol || response.usuario.rol
         };
         
-        const rolStr = getRolName(rolValue);
-        const esAdmin = rolStr === 'ADMIN' || rolStr === 'ADMINISTRADOR' || rolStr === 'VENDEDOR';
+        console.log('✅ Login exitoso:', { email: usuario.email, rol: usuario.rol });
         
-        console.log('🔍 Verificando rol:');
-        console.log('  - rolValue:', rolValue);
-        console.log('  - rolStr (uppercase):', rolStr);
-        console.log('  - esAdmin:', esAdmin);
+        // Determinar si es admin
+        const rolStr = typeof usuario.rol === 'string' ? usuario.rol.toUpperCase() : 'CLIENTE';
+        const esAdmin = rolStr === 'ADMIN';
+        
+        console.log('🔍 Rol detectado:', rolStr, '- Es admin:', esAdmin);
         
         // Login y resetear campos
         login(usuario);

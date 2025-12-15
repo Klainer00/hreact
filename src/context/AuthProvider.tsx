@@ -25,8 +25,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     setUsuario(null);
     removeUsuario();
-    // Solo redirigir en el navegador, no en tests
-    if (typeof window !== 'undefined' && !window.location.href.includes('localhost:')) {
+    // Redirigir al inicio
+    if (typeof window !== 'undefined') {
       window.location.href = '/';
     }
   };

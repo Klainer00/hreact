@@ -4,13 +4,12 @@ export interface Usuario {
   rut: string;
   nombre: string;
   apellido: string;
-  fecha_nacimiento: string;
   email: string;
-  direccion: string;
-  region: string;
-  comuna: string;
+  telefono?: string;
+  direccion?: string;
+  region?: string;
+  comuna?: string;
   rol: RolUsuario | string; 
-  estado: string;
   password?: string;
   token?: string;
 }

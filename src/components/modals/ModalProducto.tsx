@@ -11,14 +11,13 @@ interface Props {
 const ModalProducto = ({ show, onClose, onSave, productoToEdit }: Props) => {
   
   const initialState: Producto = {
-    codigo: '',
     nombre: '',
     descripcion: '',
     precio: 0,
     stock: 0,
-    stock_critico: 10,
     categoria: 'Frutas', // Valor por defecto
-    imagen: '',
+    imagenUrl: '',
+    activo: true
   };
 
   const [form, setForm] = useState<Producto>(initialState);
@@ -36,12 +35,11 @@ const ModalProducto = ({ show, onClose, onSave, productoToEdit }: Props) => {
   // Validaciones
   const errors = useMemo(() => {
     const err: Partial<Record<keyof Producto, string>> = {};
-    if (!form.codigo.trim() && !isEditMode) err.codigo = "El código es requerido.";
     if (!form.nombre.trim()) err.nombre = "El nombre es requerido.";
     if (!form.categoria.trim()) err.categoria = "La categoría es requerida.";
     if (form.precio <= 0) err.precio = "El precio debe ser mayor a 0.";
     if (form.stock < 0) err.stock = "El stock no puede ser negativo.";
-    if (!form.imagen.trim()) err.imagen = "La ruta de la imagen es requerida (ej: /img/producto.png).";
+    if (!form.imagenUrl.trim()) err.imagenUrl = "La ruta de la imagen es requerida (ej: /img/producto.png).";
     
     return err;
   }, [form, isEditMode]);
@@ -78,23 +76,8 @@ const ModalProducto = ({ show, onClose, onSave, productoToEdit }: Props) => {
           <div className="modal-body">
             <form onSubmit={handleSubmit} noValidate>
               <div className="row">
-                {/* Código */}
-                <div className="col-md-6 mb-3">
-                  <label htmlFor="codigo" className="form-label">Código (SKU)</label>
-                  <input 
-                    type="text" 
-                    className={`form-control ${errors.codigo ? 'is-invalid' : ''}`} 
-                    id="codigo" 
-                    value={form.codigo} 
-                    onChange={handleChange} 
-                    required 
-                    disabled={isEditMode} // No se puede editar el código si ya existe
-                  />
-                  {errors.codigo && <div className="invalid-feedback">{errors.codigo}</div>}
-                </div>
-                
                 {/* Nombre */}
-                <div className="col-md-6 mb-3">
+                <div className="col-md-12 mb-3">
                   <label htmlFor="nombre" className="form-label">Nombre del Producto</label>
                   <input 
                     type="text" 
@@ -167,17 +150,17 @@ const ModalProducto = ({ show, onClose, onSave, productoToEdit }: Props) => {
 
                 {/* Imagen */}
                 <div className="col-md-6 mb-3">
-                  <label htmlFor="imagen" className="form-label">Ruta de Imagen</label>
+                  <label htmlFor="imagenUrl" className="form-label">Ruta de la Imagen (ej: /img/producto.png)</label>
                   <input 
                     type="text" 
-                    className={`form-control ${errors.imagen ? 'is-invalid' : ''}`} 
-                    id="imagen" 
-                    value={form.imagen} 
+                    className={`form-control ${errors.imagenUrl ? 'is-invalid' : ''}`} 
+                    id="imagenUrl" 
+                    value={form.imagenUrl} 
                     onChange={handleChange} 
-                    placeholder="/img/nombre-archivo.png" 
+                    placeholder="/img/producto.png" 
                     required 
                   />
-                  {errors.imagen && <div className="invalid-feedback">{errors.imagen}</div>}
+                  {errors.imagenUrl && <div className="invalid-feedback">{errors.imagenUrl}</div>}
                 </div>
 
               </div>

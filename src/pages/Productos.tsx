@@ -95,7 +95,7 @@ const Productos = () => {
         <div id="product-list" className="row g-4">
           {productosFiltrados.length > 0 ? (
             productosFiltrados.map(prod => (
-              <ProductoCard key={prod.id || prod.codigo} producto={prod} />
+              <ProductoCard key={prod.id} producto={prod} />
             ))
           ) : (
             <div className="col-12">

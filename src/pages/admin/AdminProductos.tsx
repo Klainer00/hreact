@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { Producto } from '../../interfaces/producto';
-import { fetchProductos } from '../../utils/api';
-import { loadPedidos } from '../../utils/storage'; // Importar función para cargar pedidos
-import ModalProducto from '../../components/modals/ModalProducto'; // <-- 1. Importar el modal
+import { fetchProductos, agregarProducto, actualizarProducto, eliminarProducto } from '../../utils/api';
+import { loadPedidos } from '../../utils/storage';
+import ModalProducto from '../../components/modals/ModalProducto';
 import Swal from 'sweetalert2';
 
 const AdminProductos = () => {
@@ -58,11 +58,11 @@ const AdminProductos = () => {
     setShowModal(true);
   };
 
-  const handleEliminar = (codigo: string) => {
+  const handleEliminar = async (id: number) => {
     // Verificar si el producto está en algún pedido
     const pedidos = loadPedidos();
     const productoEnPedido = pedidos.some(pedido => 
-      pedido.items.some(item => item.id === codigo)
+      pedido.detalles.some((detalle: any) => detalle.productoId === id)
     );
 
     if (productoEnPedido) {
@@ -75,7 +75,7 @@ const AdminProductos = () => {
       return;
     }
 
-    Swal.fire({
+    const result = await Swal.fire({
       title: "¿Está seguro?",
       text: "¿Desea eliminar este producto? Esta acción no se puede deshacer.",
       icon: "warning",
@@ -84,9 +84,14 @@ const AdminProductos = () => {
       cancelButtonColor: "#3085d6",
       confirmButtonText: "Sí, eliminar",
       cancelButtonText: "Cancelar"
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const nuevosProductos = productos.filter(p => p.codigo !== codigo);
+    });
+
+    if (result.isConfirmed) {
+      // Llamar a la API
+      const response = await eliminarProducto(id);
+      
+      if (response.success) {
+        const nuevosProductos = productos.filter(p => p.id !== id);
         setProductos(nuevosProductos);
         localStorage.setItem('productos', JSON.stringify(nuevosProductos));
         
@@ -97,34 +102,72 @@ const AdminProductos = () => {
           timer: 2000,
           showConfirmButton: false
         });
+      } else {
+        Swal.fire({
+          title: "Error",
+          text: response.message || "No se pudo eliminar el producto.",
+          icon: "error"
+        });
       }
-    });
+    }
   };
 
-  // --- 4. Función para guardar cambios (Crear o Editar) ---
-  const handleSave = (producto: Producto) => {
-    let nuevosProductos;
-    const productosGuardados = JSON.parse(localStorage.getItem('productos') || '[]');
-
-    if (productoToEdit) {
-      // Modo Editar
-      nuevosProductos = productosGuardados.map((p: Producto) => 
-        p.codigo === producto.codigo ? { ...p, ...producto } : p
-      );
-    } else {
-      // Modo Crear
-      // Validar que el código no exista
-      const codigoExiste = productosGuardados.some((p: Producto) => p.codigo === producto.codigo);
-      if (codigoExiste) {
-        Swal.fire("Error", "El código (SKU) de ese producto ya existe.", "error");
-        return;
+  const handleSave = async (producto: Producto) => {
+    try {
+      let response;
+      
+      if (productoToEdit) {
+        // Modo Editar - Llamar a la API
+        response = await actualizarProducto(producto.id!, producto);
+        
+        if (response.success) {
+          // Actualizar en el estado local
+          const nuevosProductos = productos.map((p: Producto) => 
+            p.id === producto.id ? { ...p, ...producto } : p
+          );
+          setProductos(nuevosProductos);
+          localStorage.setItem('productos', JSON.stringify(nuevosProductos));
+          
+          Swal.fire({
+            title: "Actualizado",
+            text: "El producto ha sido actualizado exitosamente.",
+            icon: "success",
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }
+      } else {
+        // Modo Crear - Llamar a la API
+        response = await agregarProducto(producto);
+        
+        if (response.success) {
+          // Recargar productos desde la API para obtener el ID correcto
+          const data = await fetchProductos();
+          setProductos(data);
+          localStorage.setItem('productos', JSON.stringify(data));
+          
+          Swal.fire({
+            title: "Creado",
+            text: "El producto ha sido creado exitosamente.",
+            icon: "success",
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }
       }
-      nuevosProductos = [...productosGuardados, producto];
+      
+      if (response?.success) {
+        setShowModal(false);
+      } else {
+        throw new Error(response?.message || 'Error desconocido');
+      }
+    } catch (error: any) {
+      Swal.fire({
+        title: "Error",
+        text: error.message || "No se pudo guardar el producto.",
+        icon: "error"
+      });
     }
-    
-    setProductos(nuevosProductos);
-    localStorage.setItem('productos', JSON.stringify(nuevosProductos));
-    setShowModal(false); // Cierra el modal
   };
 
   if (loading) {
@@ -148,7 +191,7 @@ const AdminProductos = () => {
         <table className="table table-hover table-sm admin-table">
           <thead className="table-light">
             <tr>
-              <th>Código</th>
+              <th>ID</th>
               <th>Imagen</th>
               <th>Nombre</th>
               <th>Precio</th>
@@ -158,11 +201,11 @@ const AdminProductos = () => {
           </thead>
           <tbody>
             {productos.map(prod => (
-              <tr key={prod.codigo}>
-                <td>{prod.codigo}</td>
+              <tr key={prod.id}>
+                <td>{prod.id}</td>
                 <td>
                   <img 
-                    src={prod.imagen.startsWith('../') ? prod.imagen.substring(3) : prod.imagen} 
+                    src={prod.imagenUrl?.startsWith('../') ? prod.imagenUrl.substring(3) : prod.imagenUrl} 
                     alt={prod.nombre} 
                     width="50" 
                   />
@@ -173,13 +216,13 @@ const AdminProductos = () => {
                 <td>
                   <button 
                     className="btn btn-primary btn-sm btn-editar" 
-                    onClick={() => handleEditar(prod)} // <-- 6. Conectar botón
+                    onClick={() => handleEditar(prod)}
                   >
                     Editar
                   </button>
                   <button 
                     className="btn btn-danger btn-sm btn-eliminar ms-1" 
-                    onClick={() => handleEliminar(prod.codigo)}
+                    onClick={() => handleEliminar(prod.id!)}
                   >
                     Eliminar
                   </button>

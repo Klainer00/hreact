@@ -59,12 +59,45 @@ export const loginUsuario = async (email: string, password: string) => {
     const data = await handleResponse(await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ email, contraseña: password }) // El backend espera 'contraseña'
+      body: JSON.stringify({ email, password }) // El backend espera 'password'
     }));
     
-    // Guardar el token si el login es exitoso
-    if (data.token) localStorage.setItem('authToken', data.token);
-    return { success: true, usuario: data.usuario || data, token: data.token };
+    // Guardar el token y el rol si el login es exitoso
+    if (data.token) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('userRole', data.rol);
+      localStorage.setItem('userEmail', data.email);
+      
+      // Obtener datos completos del usuario (incluyendo ID)
+      try {
+        const usuarios = await handleResponse(await fetch(`${API_BASE_URL}/usuarios`, {
+          headers: getHeaders()
+        }));
+        
+        console.log('📋 Usuarios obtenidos:', usuarios?.length || 0);
+        
+        if (usuarios && usuarios.length > 0) {
+          // Filtrar por email ya que el backend devuelve todos los usuarios
+          const usuarioCompleto = usuarios.find((u: any) => u.email === email);
+          
+          console.log('👤 Usuario encontrado:', usuarioCompleto ? 'Sí' : 'No', usuarioCompleto?.email);
+          
+          if (usuarioCompleto) {
+            // Combinar datos del login con datos completos del usuario
+            const usuarioFinal = {
+              ...usuarioCompleto,
+              token: data.token,
+              rol: data.rol
+            };
+            console.log('✅ Usuario final con ID:', usuarioFinal.id, usuarioFinal.email);
+            return { success: true, usuario: usuarioFinal, token: data.token, rol: data.rol };
+          }
+        }
+      } catch (userError) {
+        console.error('❌ Error obteniendo datos completos del usuario:', userError);
+      }
+    }
+    return { success: true, usuario: data, token: data.token, rol: data.rol };
   } catch (error: any) {
     return { success: false, message: error.message };
   }
@@ -78,11 +111,11 @@ export const registroMicroservicio = async (datos: any) => {
       nombre: datos.nombre,
       apellido: datos.apellido,
       email: datos.email,
-      contraseña: datos.password, // Importante: 'contraseña' para Java
-      direccion: datos.direccion,
-      region: datos.region,
-      comuna: datos.comuna,
-      fechaNacimiento: datos.fecha_nacimiento
+      password: datos.password, // Importante: 'password' para Java Spring Boot
+      telefono: datos.telefono || '',
+      direccion: datos.direccion || '',
+      region: datos.region || '',
+      comuna: datos.comuna || ''
     };
 
     const data = await handleResponse(await fetch(`${API_BASE_URL}/auth/register`, {
@@ -90,7 +123,38 @@ export const registroMicroservicio = async (datos: any) => {
       headers: getHeaders(),
       body: JSON.stringify(payload)
     }));
-    return { success: true, usuario: data, message: 'Registro exitoso' };
+    
+    // Guardar el token si el registro es exitoso
+    if (data.token) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('userRole', data.rol);
+      localStorage.setItem('userEmail', data.email);
+      
+      // Obtener datos completos del usuario (incluyendo ID)
+      try {
+        const usuarios = await handleResponse(await fetch(`${API_BASE_URL}/usuarios`, {
+          headers: getHeaders()
+        }));
+        
+        if (usuarios && usuarios.length > 0) {
+          // Filtrar por email ya que el backend devuelve todos los usuarios
+          const usuarioCompleto = usuarios.find((u: any) => u.email === datos.email);
+          
+          if (usuarioCompleto) {
+            const usuarioFinal = {
+              ...usuarioCompleto,
+              token: data.token,
+              rol: data.rol
+            };
+            return { success: true, usuario: usuarioFinal, message: 'Registro exitoso', token: data.token };
+          }
+        }
+      } catch (userError) {
+        console.warn('No se pudieron obtener datos completos del usuario:', userError);
+      }
+    }
+    
+    return { success: true, usuario: data, message: 'Registro exitoso', token: data.token };
   } catch (error: any) {
     return { success: false, message: error.message };
   }
@@ -150,11 +214,56 @@ export const actualizarUsuario = async (id: number, usuario: Partial<Usuario>) =
 };
 
 export const verificarUsuarioTienePedidos = async (id: number) => {
-  // Usamos 'id' en un console.log para que TypeScript no se queje de que no se usa
-  console.log('Verificando pedidos para usuario ID:', id); 
-  
-  // Stub temporal
-  return { success: true, tienePedidos: false, cantidad: 0 };
+  try {
+    console.log('Verificando pedidos para usuario ID:', id);
+    
+    // Consultar pedidos del usuario desde el backend
+    const response = await fetch(`${API_BASE_URL}/pedidos/usuario/${id}`, {
+      headers: getHeaders(true) // Requiere autenticación
+    });
+    
+    if (!response.ok) {
+      // Si el usuario no existe o no tiene pedidos, retornar false
+      if (response.status === 404) {
+        return { success: true, tienePedidos: false, cantidad: 0 };
+      }
+      throw new Error(`Error ${response.status}`);
+    }
+    
+    const pedidos = await response.json();
+    
+    // Si es un array, contar los pedidos
+    if (Array.isArray(pedidos)) {
+      const pedidosPendientes = pedidos.filter(p => 
+        p.estado && p.estado.toUpperCase() !== 'ENTREGADO' && p.estado.toUpperCase() !== 'CANCELADO'
+      );
+      
+      return { 
+        success: true, 
+        tienePedidos: pedidosPendientes.length > 0, 
+        cantidad: pedidosPendientes.length 
+      };
+    }
+    
+    // Si es un objeto paginado, verificar content
+    if (pedidos.content && Array.isArray(pedidos.content)) {
+      const pedidosPendientes = pedidos.content.filter((p: any) => 
+        p.estado && p.estado.toUpperCase() !== 'ENTREGADO' && p.estado.toUpperCase() !== 'CANCELADO'
+      );
+      
+      return { 
+        success: true, 
+        tienePedidos: pedidosPendientes.length > 0, 
+        cantidad: pedidosPendientes.length 
+      };
+    }
+    
+    return { success: true, tienePedidos: false, cantidad: 0 };
+  } catch (error: any) {
+    console.error('Error verificando pedidos:', error);
+    // En caso de error, ser conservador y no permitir eliminar
+    return { success: false, tienePedidos: true, cantidad: 0, message: error.message };
+  }
 };
 
 // ==================== PRODUCTOS (Productos Service) ====================
@@ -218,17 +327,40 @@ export const eliminarProducto = async (id: number) => {
 
 // ==================== PEDIDOS (Pedidos Service) ====================
 
-export const crearPedido = async (items: any[], total: number) => {
+export const fetchPedidos = async (isAdmin: boolean = false) => {
+  try {
+    // Si es admin, usar el endpoint administrativo
+    const endpoint = isAdmin 
+      ? `${API_BASE_URL}/pedidos/admin?size=100` 
+      : `${API_BASE_URL}/pedidos?size=100`;
+    
+    const response = await fetch(endpoint, {
+      headers: getHeaders(true) // Requiere autenticación
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.content || data; // Maneja paginación o lista directa
+  } catch (error) {
+    console.error('Error cargando pedidos:', error);
+    return [];
+  }
+};
+
+export const crearPedido = async (items: any[], direccion: string = '', comuna: string = '', region: string = '') => {
   try {
     // Transformamos el carrito al formato que espera Java (PedidoDTO)
     const payload = {
-      items: items.map(item => ({
-        // Asegúrate de que tu carrito tenga el ID real de la base de datos
+      detalles: items.map(item => ({
         productoId: item.id, 
-        cantidad: item.cantidad,
-        precioUnitario: item.precio
+        cantidad: item.cantidad
       })),
-      total: total
+      direccionEnvio: direccion,
+      comunaEnvio: comuna,
+      regionEnvio: region
     };
 
     const data = await handleResponse(await fetch(`${API_BASE_URL}/pedidos`, {

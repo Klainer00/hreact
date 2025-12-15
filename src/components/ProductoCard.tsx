@@ -42,7 +42,7 @@ const ProductoCard = ({ producto }: Props) => {
   };
   
   // CORRECCIÓN DE IMAGEN: Manejo de null/undefined y src=""
-  const imagen = producto.imagen || '';
+  const imagen = producto.imagenUrl || '';
   const rutaImagenBase = imagen.startsWith('../') ? imagen.substring(3) : imagen;
   const rutaImagen = rutaImagenBase === '' ? undefined : rutaImagenBase; // undefined para evitar src=""
 
@@ -53,6 +53,11 @@ const ProductoCard = ({ producto }: Props) => {
         <div className="card-body text-center">
           <h5 className="card-title">{producto.nombre}</h5>
           <p className="card-text price">${producto.precio.toLocaleString('es-CL')} / kg</p>
+          <p className="text-muted small mb-2">
+            Stock disponible: <span className={`badge ${producto.stock > 10 ? 'bg-success' : producto.stock > 0 ? 'bg-warning' : 'bg-danger'}`}>
+              {producto.stock} unidades
+            </span>
+          </p>
           {producto.stock > 0 ? (
             <button 
               className="btn btn-success add-to-cart" 

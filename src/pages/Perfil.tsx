@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthProvider';
 import { Navigate } from 'react-router-dom';
-import { loadPedidos } from '../utils/storage';
-import { actualizarUsuario } from '../utils/api';
+import { actualizarUsuario, fetchPedidos } from '../utils/api';
 import type { Usuario } from '../interfaces/usuario';
+import type { Pedido } from '../interfaces/pedido';
 import Swal from 'sweetalert2';
 
 const Perfil = () => {
@@ -11,13 +11,42 @@ const Perfil = () => {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState<Partial<Usuario>>(usuario || {});
   const [activeTab, setActiveTab] = useState('perfil'); // 'perfil' o 'pedidos'
+  const [pedidosUsuario, setPedidosUsuario] = useState<Pedido[]>([]);
+  const [loadingPedidos, setLoadingPedidos] = useState(false);
 
   if (!usuario) {
     return <Navigate to="/index.html" replace />;
   }
 
-  // Obtener pedidos del usuario
-  const pedidosUsuario = loadPedidos().filter(pedido => pedido.cliente.email === usuario.email);
+  // Cargar pedidos del usuario desde la API
+  useEffect(() => {
+    const cargarPedidos = async () => {
+      if (activeTab === 'pedidos' && usuario?.id) {
+        setLoadingPedidos(true);
+        try {
+          const pedidos = await fetchPedidos();
+          // Filtrar pedidos por usuario actual
+          const misPedidos = pedidos.filter((p: Pedido) => p.usuarioId === usuario.id);
+          setPedidosUsuario(misPedidos);
+        } catch (error) {
+          console.error('Error cargando pedidos:', error);
+          Swal.fire({
+            title: 'Error',
+            text: 'No se pudieron cargar tus pedidos. Intenta más tarde.',
+            icon: 'error',
+            toast: true,
+            position: 'bottom-end',
+            showConfirmButton: false,
+            timer: 3000
+          });
+        } finally {
+          setLoadingPedidos(false);
+        }
+      }
+    };
+    
+    cargarPedidos();
+  }, [activeTab, usuario?.id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -142,31 +171,53 @@ const Perfil = () => {
                 <div className="row g-3 g-md-4">
                   <div className="col-12 col-sm-6">
                     <div className="mb-3">
-                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Nombre</strong>
-                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.nombre || '-'}</p>
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>RUT</strong>
+                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.rut || '-'}</p>
                     </div>
                   </div>
                   
-                  <div className="col-12 col-sm-6">
-                    <div className="mb-3">
-                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Apellido</strong>
-                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.apellido || '-'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="row g-3 g-md-4 mt-2">
                   <div className="col-12 col-sm-6">
                     <div className="mb-3">
                       <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Email</strong>
                       <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.email || '-'}</p>
                     </div>
                   </div>
+                </div>
+
+                <div className="row g-3 g-md-4 mt-2">
+                  <div className="col-12 col-sm-6">
+                    <div className="mb-3">
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Nombre</strong>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          className="form-control"
+                          name="nombre"
+                          value={formData.nombre || ''}
+                          onChange={handleInputChange}
+                          placeholder="Nombre"
+                        />
+                      ) : (
+                        <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.nombre || '-'}</p>
+                      )}
+                    </div>
+                  </div>
 
                   <div className="col-12 col-sm-6">
                     <div className="mb-3">
-                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>RUT</strong>
-                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.rut || '-'}</p>
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Apellido</strong>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          className="form-control"
+                          name="apellido"
+                          value={formData.apellido || ''}
+                          onChange={handleInputChange}
+                          placeholder="Apellido"
+                        />
+                      ) : (
+                        <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.apellido || '-'}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -174,10 +225,19 @@ const Perfil = () => {
                 <div className="row g-3 g-md-4 mt-2">
                   <div className="col-12 col-sm-6">
                     <div className="mb-3">
-                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Fecha de Nacimiento</strong>
-                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>
-                        {usuario.fecha_nacimiento ? new Date(usuario.fecha_nacimiento).toLocaleDateString('es-CL') : '-'}
-                      </p>
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Teléfono</strong>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          className="form-control"
+                          name="telefono"
+                          value={formData.telefono || ''}
+                          onChange={handleInputChange}
+                          placeholder="Teléfono"
+                        />
+                      ) : (
+                        <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>{usuario.telefono || '-'}</p>
+                      )}
                     </div>
                   </div>
 
@@ -239,6 +299,19 @@ const Perfil = () => {
                     </div>
                   </div>
                 </div>
+
+                <div className="row g-3 g-md-4 mt-2">
+                  <div className="col-12">
+                    <div className="mb-3">
+                      <strong className="d-block mb-2" style={{ fontSize: '0.95rem' }}>Rol</strong>
+                      <p className="text-muted mb-0" style={{ fontSize: '1rem' }}>
+                        <span className={`badge ${usuario.rol === 'ADMIN' ? 'bg-danger' : 'bg-primary'}`}>
+                          {usuario.rol || 'CLIENTE'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -249,7 +322,14 @@ const Perfil = () => {
               <div className="card-body p-3 p-sm-4 p-md-5">
                 <h5 className="card-title mb-4 fs-5">Mis Pedidos</h5>
                 
-                {pedidosUsuario.length === 0 ? (
+                {loadingPedidos ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Cargando...</span>
+                    </div>
+                    <p className="mt-3 text-muted">Cargando tus pedidos...</p>
+                  </div>
+                ) : pedidosUsuario.length === 0 ? (
                   <div className="text-center py-5">
                     <p className="text-muted mb-3">Aún no has realizado ningún pedido.</p>
                     <button 
@@ -268,6 +348,7 @@ const Perfil = () => {
                           <th>Fecha</th>
                           <th>Items</th>
                           <th>Total</th>
+                          <th>Estado</th>
                           <th>Detalles</th>
                         </tr>
                       </thead>
@@ -275,9 +356,19 @@ const Perfil = () => {
                         {pedidosUsuario.map(pedido => (
                           <tr key={pedido.id}>
                             <td>#{pedido.id}</td>
-                            <td>{new Date(pedido.fecha).toLocaleDateString()}</td>
-                            <td>{pedido.items.length} productos</td>
-                            <td>${pedido.total.toLocaleString('es-CL')}</td>
+                            <td>{new Date(pedido.fecha).toLocaleDateString('es-CL')}</td>
+                            <td>{pedido.detalles?.length || 0} productos</td>
+                            <td>${pedido.total?.toLocaleString('es-CL') || '0'}</td>
+                            <td>
+                              <span className={`badge ${
+                                pedido.estado === 'ENTREGADO' ? 'bg-success' :
+                                pedido.estado === 'CANCELADO' ? 'bg-danger' :
+                                pedido.estado === 'EN_CAMINO' ? 'bg-info' :
+                                'bg-warning'
+                              }`}>
+                                {pedido.estado || 'PENDIENTE'}
+                              </span>
+                            </td>
                             <td>
                               <button 
                                 className="btn btn-outline-primary btn-sm"
@@ -286,17 +377,20 @@ const Perfil = () => {
                                     title: `Pedido #${pedido.id}`,
                                     html: `
                                       <div class="text-start">
-                                        <p><strong>Fecha:</strong> ${new Date(pedido.fecha).toLocaleDateString()}</p>
+                                        <p><strong>Fecha:</strong> ${new Date(pedido.fecha).toLocaleDateString('es-CL')}</p>
+                                        <p><strong>Estado:</strong> <span class="badge bg-primary">${pedido.estado || 'PENDIENTE'}</span></p>
+                                        ${pedido.direccionEnvio ? `<p><strong>Dirección:</strong> ${pedido.direccionEnvio}, ${pedido.comunaEnvio}, ${pedido.regionEnvio}</p>` : ''}
                                         <p><strong>Productos:</strong></p>
                                         <ul>
-                                          ${pedido.items.map(item => 
-                                            `<li>${item.nombre} x${item.cantidad} - $${(item.precio * item.cantidad).toLocaleString('es-CL')}</li>`
-                                          ).join('')}
+                                          ${pedido.detalles?.map(detalle => 
+                                            `<li>Producto ID: ${detalle.productoId} x${detalle.cantidad} - $${(detalle.precioUnitario * detalle.cantidad).toLocaleString('es-CL')}</li>`
+                                          ).join('') || '<li>No hay detalles</li>'}
                                         </ul>
-                                        <p><strong>Total:</strong> $${pedido.total.toLocaleString('es-CL')}</p>
+                                        <p><strong>Total:</strong> $${pedido.total?.toLocaleString('es-CL') || '0'}</p>
                                       </div>
                                     `,
-                                    confirmButtonText: "Cerrar"
+                                    confirmButtonText: "Cerrar",
+                                    width: '600px'
                                   });
                                 }}
                               >

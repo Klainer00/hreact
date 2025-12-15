@@ -1,13 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCarrito } from '../../context/CarritoProvider';
 import { useAuth } from '../../context/AuthProvider';
-import { crearPedido } from '../../utils/api'; // Importamos la función real
+import { crearPedido, fetchProductos } from '../../utils/api';
 import Swal from 'sweetalert2';
 
 const CarritoModal = () => {
-  const { carrito, limpiarCarrito, total, disminuirCantidad, incrementarCantidad, eliminarDelCarrito } = useCarrito();
+  const { carrito, limpiarCarrito, total, disminuirCantidad, incrementarCantidad, eliminarDelCarrito, actualizarCantidad } = useCarrito();
   const { usuario } = useAuth();
   const [procesando, setProcesando] = useState(false);
+  const [intentoFinalizarSinLogin, setIntentoFinalizarSinLogin] = useState(false);
+
+  // Cuando el usuario inicia sesión después de intentar finalizar compra
+  useEffect(() => {
+    if (usuario && intentoFinalizarSinLogin) {
+      setIntentoFinalizarSinLogin(false);
+      // Cerrar el modal de login si está abierto
+      const loginModal = document.querySelector('#loginModal');
+      if (loginModal) {
+        const bsModal = (window as any).bootstrap.Modal.getInstance(loginModal);
+        if (bsModal) {
+          bsModal.hide();
+        }
+      }
+      // Pequeño delay para que el modal de login se cierre completamente
+      setTimeout(() => {
+        handleFinalizarCompra();
+      }, 500);
+    }
+  }, [usuario]);
 
   const handleFinalizarCompra = async () => {
     // Si no hay usuario, el botón abre el login (manejado por bootstrap)
@@ -15,8 +35,84 @@ const CarritoModal = () => {
 
     setProcesando(true);
 
-    // Enviar los datos al backend
-    const resultado = await crearPedido(carrito, total);
+    // Validar stock antes de enviar el pedido
+    try {
+      const productosDisponibles = await fetchProductos();
+      let hayProblemas = false;
+      let mensajeProblemas = "";
+
+      for (const item of carrito) {
+        const productoActual = productosDisponibles.find((p: any) => p.id === item.id);
+        if (productoActual) {
+          if (productoActual.stock === 0) {
+            mensajeProblemas += `\n• ${item.nombre}: Sin stock (tienes ${item.cantidad} en el carrito)`;
+            hayProblemas = true;
+          } else if (item.cantidad > productoActual.stock) {
+            mensajeProblemas += `\n• ${item.nombre}: Solo quedan ${productoActual.stock} unidades (tienes ${item.cantidad} en el carrito)`;
+            hayProblemas = true;
+          }
+        }
+      }
+
+      if (hayProblemas) {
+        setProcesando(false);
+        const result = await Swal.fire({
+          title: 'Stock Insuficiente',
+          html: `<div style="text-align: left;">Los siguientes productos tienen problemas de stock:${mensajeProblemas}</div>`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Ajustar Automáticamente',
+          cancelButtonText: 'Cancelar',
+          confirmButtonColor: '#28a745',
+          cancelButtonColor: '#6c757d'
+        });
+
+        if (result.isConfirmed) {
+          // Ajustar cantidades automáticamente
+          for (const item of carrito) {
+            const productoActual = productosDisponibles.find((p: any) => p.id === item.id);
+            if (productoActual && item.cantidad > productoActual.stock) {
+              actualizarCantidad(Number(item.id), Math.max(1, productoActual.stock));
+            }
+          }
+          Swal.fire({
+            title: 'Cantidades Ajustadas',
+            text: 'Las cantidades se han ajustado al stock disponible. Ahora puedes finalizar tu compra.',
+            icon: 'success',
+            confirmButtonText: 'Entendido'
+          });
+        }
+        return;
+      }
+    } catch (error) {
+      console.error('Error validando stock:', error);
+    }
+
+    // Usar la dirección del usuario que ya tiene registrada
+    const direccion = usuario.direccion || '';
+    const comuna = usuario.comuna || '';
+    const region = usuario.region || '';
+
+    // Validar que el usuario tenga dirección completa
+    if (!direccion || !comuna || !region) {
+      setProcesando(false);
+      Swal.fire({
+        title: 'Dirección Incompleta',
+        text: 'Por favor actualiza tu dirección de envío en tu perfil antes de realizar un pedido.',
+        icon: 'warning',
+        confirmButtonText: 'Ir a Mi Perfil',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          window.location.href = '/perfil.html';
+        }
+      });
+      return;
+    }
+
+    // Enviar los datos al backend usando la dirección del usuario
+    const resultado = await crearPedido(carrito, direccion, comuna, region);
 
     setProcesando(false);
 
@@ -34,7 +130,22 @@ const CarritoModal = () => {
       if(btnClose) btnClose.click();
       
     } else {
-      Swal.fire("Error", `No se pudo procesar el pedido: ${resultado.message}`, "error");
+      // Mensaje más claro para error de stock
+      const mensajeError = resultado.message || "Error desconocido";
+      let titulo = "Error en el pedido";
+      let texto = mensajeError;
+      
+      if (mensajeError.includes("Stock insuficiente") || mensajeError.includes("400")) {
+        titulo = "Stock Insuficiente";
+        texto = "Uno o más productos en tu carrito no tienen stock suficiente. Por favor, reduce la cantidad o elimina el producto.";
+      }
+      
+      Swal.fire({
+        title: titulo,
+        text: texto,
+        icon: "error",
+        confirmButtonText: "Entendido"
+      });
     }
   };
 
@@ -99,7 +210,13 @@ const CarritoModal = () => {
             <button 
               className="btn btn-success" 
               disabled={carrito.length === 0 || procesando}
-              onClick={usuario ? handleFinalizarCompra : undefined}
+              onClick={() => {
+                if (usuario) {
+                  handleFinalizarCompra();
+                } else {
+                  setIntentoFinalizarSinLogin(true);
+                }
+              }}
               data-bs-toggle={!usuario ? "modal" : ""}
               data-bs-target={!usuario ? "#loginModal" : ""}
             >
