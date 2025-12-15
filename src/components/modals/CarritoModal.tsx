@@ -29,64 +29,242 @@ const CarritoModal = () => {
     }
   }, [usuario]);
 
-  const handleFinalizarCompra = async () => {
-    // Si no hay usuario, el botón abre el login (manejado por bootstrap)
-    if (!usuario) return;
-
-    setProcesando(true);
-
-    // Validar stock antes de enviar el pedido
+  const validarYAjustarStock = async () => {
     try {
-      const productosDisponibles = await fetchProductos();
+      const productos = await fetchProductos();
       let hayProblemas = false;
-      let mensajeProblemas = "";
-
-      for (const item of carrito) {
-        const productoActual = productosDisponibles.find((p: any) => p.id === item.id);
-        if (productoActual) {
-          if (productoActual.stock === 0) {
-            mensajeProblemas += `\n• ${item.nombre}: Sin stock (tienes ${item.cantidad} en el carrito)`;
-            hayProblemas = true;
-          } else if (item.cantidad > productoActual.stock) {
-            mensajeProblemas += `\n• ${item.nombre}: Solo quedan ${productoActual.stock} unidades (tienes ${item.cantidad} en el carrito)`;
-            hayProblemas = true;
-          }
+      let mensajeProblemas = '';
+      const productosSinStock: string[] = [];
+      const productosStockInsuficiente: Array<{nombre: string, disponible: number, solicitado: number}> = [];
+      
+      // Verificar stock de cada producto
+      carrito.forEach(item => {
+        const prod = productos.find((p: any) => String(p.id) === item.id);
+        if (!prod) {
+          hayProblemas = true;
+          productosSinStock.push(item.nombre);
+        } else if (prod.stock === 0) {
+          hayProblemas = true;
+          productosSinStock.push(item.nombre);
+        } else if (item.cantidad > prod.stock) {
+          hayProblemas = true;
+          productosStockInsuficiente.push({
+            nombre: item.nombre,
+            disponible: prod.stock,
+            solicitado: item.cantidad
+          });
         }
+      });
+
+      // Construir mensaje de error
+      if (productosSinStock.length > 0) {
+        mensajeProblemas += '<div style="text-align: left; margin-bottom: 10px;"><strong>❌ Sin stock:</strong><ul>';
+        productosSinStock.forEach(nombre => {
+          mensajeProblemas += `<li>${nombre}</li>`;
+        });
+        mensajeProblemas += '</ul></div>';
+      }
+
+      if (productosStockInsuficiente.length > 0) {
+        mensajeProblemas += '<div style="text-align: left;"><strong>⚠️ Stock insuficiente:</strong><ul>';
+        productosStockInsuficiente.forEach(item => {
+          mensajeProblemas += `<li>${item.nombre}: Solo ${item.disponible} disponibles (tienes ${item.solicitado} en el carrito)</li>`;
+        });
+        mensajeProblemas += '</ul></div>';
       }
 
       if (hayProblemas) {
-        setProcesando(false);
         const result = await Swal.fire({
           title: 'Stock Insuficiente',
-          html: `<div style="text-align: left;">Los siguientes productos tienen problemas de stock:${mensajeProblemas}</div>`,
+          html: mensajeProblemas,
           icon: 'warning',
           showCancelButton: true,
-          confirmButtonText: 'Ajustar Automáticamente',
-          cancelButtonText: 'Cancelar',
+          confirmButtonText: productosSinStock.length > 0 ? 'Eliminar productos sin stock' : 'Ajustar cantidades',
+          cancelButtonText: 'Revisar manualmente',
           confirmButtonColor: '#28a745',
           cancelButtonColor: '#6c757d'
         });
 
         if (result.isConfirmed) {
-          // Ajustar cantidades automáticamente
-          for (const item of carrito) {
-            const productoActual = productosDisponibles.find((p: any) => p.id === item.id);
-            if (productoActual && item.cantidad > productoActual.stock) {
-              actualizarCantidad(Number(item.id), Math.max(1, productoActual.stock));
+          // Eliminar productos sin stock
+          productosSinStock.forEach(nombre => {
+            const item = carrito.find(i => i.nombre === nombre);
+            if (item) {
+              eliminarDelCarrito(item.id);
             }
-          }
-          Swal.fire({
-            title: 'Cantidades Ajustadas',
-            text: 'Las cantidades se han ajustado al stock disponible. Ahora puedes finalizar tu compra.',
+          });
+
+          // Ajustar cantidades de productos con stock insuficiente
+          productosStockInsuficiente.forEach(item => {
+            const carritoItem = carrito.find(i => i.nombre === item.nombre);
+            if (carritoItem) {
+              actualizarCantidad(Number(carritoItem.id), item.disponible);
+            }
+          });
+
+          // Mostrar mensaje de confirmación
+          await Swal.fire({
+            title: 'Carrito Actualizado',
+            text: 'Las cantidades se han ajustado al stock disponible. Puedes finalizar tu compra ahora.',
             icon: 'success',
             confirmButtonText: 'Entendido'
           });
+          
+          return true;
         }
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error al validar stock:', error);
+      await Swal.fire({
+        title: 'Error',
+        text: 'No se pudo validar el stock. Por favor intenta nuevamente.',
+        icon: 'error',
+        confirmButtonText: 'Entendido'
+      });
+      return false;
+    }
+  };
+
+  const handleFinalizarCompra = async () => {
+    if (!usuario) {
+      Swal.fire({
+        title: 'Debes iniciar sesión',
+        text: 'Para finalizar tu compra necesitas estar registrado',
+        icon: 'info',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+
+    // Validar que el usuario tenga dirección registrada
+    if (!usuario.direccion || !usuario.comuna || !usuario.region) {
+      await Swal.fire({
+        title: 'Información incompleta',
+        text: 'Tu perfil no tiene una dirección completa. Por favor actualiza tu información en la sección de perfil.',
+        icon: 'warning',
+        confirmButtonText: 'Ir a perfil',
+        showCancelButton: true,
+        cancelButtonText: 'Cancelar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          window.location.href = '/perfil.html';
+        }
+      });
+      return;
+    }
+
+    // Primera validación: Verificar stock antes de procesar
+    const stockValido = await validarYAjustarStock();
+    if (!stockValido) return;
+
+    setProcesando(true);
+
+    try {
+      // Segunda validación: Verificar nuevamente justo antes de enviar
+      const productosActuales = await fetchProductos();
+      let errorStock = false;
+      let mensajeError = '';
+
+      for (const item of carrito) {
+        const productoActual = productosActuales.find((p: any) => String(p.id) === item.id);
+        if (!productoActual || productoActual.stock < item.cantidad) {
+          errorStock = true;
+          mensajeError = productoActual 
+            ? `El producto "${item.nombre}" solo tiene ${productoActual.stock} unidades disponibles`
+            : `El producto "${item.nombre}" ya no está disponible`;
+          break;
+        }
+      }
+
+      if (errorStock) {
+        setProcesando(false);
+        await Swal.fire({
+          title: 'Stock Actualizado',
+          text: mensajeError + '. Por favor revisa tu carrito.',
+          icon: 'error',
+          confirmButtonText: 'Revisar Carrito'
+        });
+        // Volver a validar y ajustar
+        await validarYAjustarStock();
         return;
       }
-    } catch (error) {
-      console.error('Error validando stock:', error);
+
+      const pedidoData = {
+        usuarioId: usuario.id,
+        direccionEnvio: usuario.direccion,
+        comunaEnvio: usuario.comuna,
+        regionEnvio: usuario.region,
+        total: total,
+        detalles: carrito.map(item => ({
+          productoId: Number(item.id),
+          cantidad: item.cantidad,
+          precioUnitario: item.precio
+        }))
+      };
+
+      const resultado = await crearPedido(pedidoData);
+
+      if (resultado.success || resultado.id) {
+        // Limpiar el carrito ANTES de mostrar el mensaje
+        limpiarCarrito();
+        
+        // Cerrar el modal del carrito
+        const modalElement = document.getElementById('modalCarrito');
+        if (modalElement) {
+          const modal = (window as any).bootstrap.Modal.getInstance(modalElement);
+          if (modal) {
+            modal.hide();
+          }
+        }
+        
+        await Swal.fire({
+          title: '¡Pedido realizado!',
+          text: 'Tu pedido ha sido procesado exitosamente',
+          icon: 'success',
+          confirmButtonText: 'Ver mis pedidos'
+        });
+
+        window.location.href = '/perfil.html';
+      } else {
+        throw new Error(resultado.message || 'Error al procesar el pedido');
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || 'No se pudo procesar tu pedido';
+      
+      // Verificar si es un error de stock
+      if (errorMessage.toLowerCase().includes('stock') || 
+          errorMessage.toLowerCase().includes('insuficiente') ||
+          errorMessage.toLowerCase().includes('disponible')) {
+        await Swal.fire({
+          title: 'Stock Insuficiente',
+          text: 'Uno o más productos no tienen stock suficiente. Vamos a actualizar tu carrito.',
+          icon: 'warning',
+          confirmButtonText: 'Actualizar Carrito'
+        });
+        
+        // Re-validar y ajustar stock
+        await validarYAjustarStock();
+      } else {
+        await Swal.fire({
+          title: 'Error',
+          text: errorMessage,
+          icon: 'error',
+          confirmButtonText: 'Entendido'
+        });
+      }
+    } finally {
+      setProcesando(false);
     }
+  };
+
+  const handleObsoleto = async () => {
+    // Si no hay usuario, el botón abre el login (manejado por bootstrap)
+    if (!usuario) return;
+
+    setProcesando(true);
 
     // Usar la dirección del usuario que ya tiene registrada
     const direccion = usuario.direccion || '';
@@ -112,11 +290,24 @@ const CarritoModal = () => {
     }
 
     // Enviar los datos al backend usando la dirección del usuario
-    const resultado = await crearPedido(carrito, direccion, comuna, region);
+    const pedidoData = {
+      usuarioId: usuario.id,
+      direccionEnvio: direccion,
+      comunaEnvio: comuna,
+      regionEnvio: region,
+      total: total,
+      detalles: carrito.map(item => ({
+        productoId: Number(item.id),
+        cantidad: item.cantidad,
+        precioUnitario: item.precio
+      }))
+    };
+    
+    const resultado = await crearPedido(pedidoData);
 
     setProcesando(false);
 
-    if (resultado.success) {
+    if (resultado.success || resultado.id) {
       Swal.fire({
         title: "¡Pedido Exitoso!",
         text: `Tu pedido #${resultado.pedido.id} ha sido registrado correctamente.`,
@@ -182,11 +373,23 @@ const CarritoModal = () => {
                           </div>
                         </td>
                         <td>
-                          <div className="input-group input-group-sm justify-content-center" style={{width: '100px', margin: '0 auto'}}>
+                          <div className="input-group input-group-sm justify-content-center" style={{width: '120px', margin: '0 auto'}}>
                             <button className="btn btn-outline-secondary" onClick={() => disminuirCantidad(item.id)}>-</button>
                             <span className="form-control text-center">{item.cantidad}</span>
-                            <button className="btn btn-outline-secondary" onClick={() => incrementarCantidad(item.id)}>+</button>
+                            <button 
+                              className="btn btn-outline-secondary" 
+                              onClick={() => incrementarCantidad(item.id)}
+                              disabled={!!(item.stock && item.cantidad >= item.stock)}
+                              title={item.stock && item.cantidad >= item.stock ? `Stock máximo: ${item.stock}` : ''}
+                            >
+                              +
+                            </button>
                           </div>
+                          {item.stock && (
+                            <small className="text-muted d-block mt-1">
+                              Stock: {item.stock}
+                            </small>
+                          )}
                         </td>
                         <td>${item.precio.toLocaleString('es-CL')}</td>
                         <td>${(item.precio * item.cantidad).toLocaleString('es-CL')}</td>

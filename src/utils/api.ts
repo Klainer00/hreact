@@ -202,18 +202,71 @@ export const eliminarUsuario = async (id: number) => {
 
 export const actualizarUsuario = async (id: number, usuario: Partial<Usuario>) => {
   try {
-    await handleResponse(await fetch(`${API_BASE_URL}/usuarios/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
       method: 'PUT',
       headers: getHeaders(true),
       body: JSON.stringify(usuario)
-    }));
-    return { success: true, message: 'Usuario actualizado' };
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
+      throw new Error(errorData.message || `Error ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return { 
+      success: true, 
+      message: 'Usuario actualizado',
+      usuario: data // Devolver el usuario actualizado desde el backend
+    };
   } catch (error: any) {
-    return { success: false, message: error.message };
+    console.error('Error actualizando usuario:', error);
+    return { success: false, message: error.message, usuario: undefined };
   }
 };
 
-export const verificarUsuarioTienePedidos = async (id: number) => {
+export const verificarUsuarioTienePedidos = async (usuarioId: number): Promise<{success: boolean, tienePedidos: boolean, cantidad: number}> => {
+  try {
+    const token = localStorage.getItem('authToken');
+    
+    // Usar el endpoint de admin que trae todos los pedidos
+    const response = await fetch(`${API_BASE_URL}/pedidos/admin?size=1000`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log(`🔍 Verificando pedidos para usuario ${usuarioId}, status:`, response.status);
+    
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    const pedidosArray = Array.isArray(data) ? data : (data.content || []);
+    
+    // Filtrar pedidos que pertenecen al usuario específico
+    const pedidosUsuario = pedidosArray.filter((pedido: any) => {
+      const pedidoUserId = pedido.usuarioId || pedido.usuario?.id || pedido.usuario_id;
+      return pedidoUserId === usuarioId || pedidoUserId === String(usuarioId);
+    });
+    
+    console.log(`📦 Usuario ${usuarioId} tiene ${pedidosUsuario.length} pedido(s) en total de ${pedidosArray.length}`);
+    
+    return {
+      success: true,
+      tienePedidos: pedidosUsuario.length > 0,
+      cantidad: pedidosUsuario.length
+    };
+  } catch (error) {
+    console.error('❌ Error al verificar pedidos:', error);
+    // En caso de error, retornamos error y NO permitimos eliminar
+    return { success: false, tienePedidos: false, cantidad: 0 };
+  }
+};
+
+export const verificarUsuarioTienePedidosOBSOLETO = async (id: number) => {
   try {
     console.log('Verificando pedidos para usuario ID:', id);
     
@@ -350,25 +403,42 @@ export const fetchPedidos = async (isAdmin: boolean = false) => {
   }
 };
 
-export const crearPedido = async (items: any[], direccion: string = '', comuna: string = '', region: string = '') => {
+export const crearPedido = async (pedidoData: any) => {
   try {
-    // Transformamos el carrito al formato que espera Java (PedidoDTO)
+    const token = localStorage.getItem('authToken');
+    
+    if (!pedidoData.usuarioId) {
+      return { success: false, message: 'Usuario no autenticado' };
+    }
+
+    // Transformamos al formato que espera Java (PedidoDTO)
     const payload = {
-      detalles: items.map(item => ({
-        productoId: item.id, 
-        cantidad: item.cantidad
-      })),
-      direccionEnvio: direccion,
-      comunaEnvio: comuna,
-      regionEnvio: region
+      usuarioId: pedidoData.usuarioId,
+      direccionEnvio: pedidoData.direccionEnvio,
+      comunaEnvio: pedidoData.comunaEnvio,
+      regionEnvio: pedidoData.regionEnvio,
+      total: pedidoData.total,
+      detalles: pedidoData.detalles.map((item: any) => ({
+        productoId: item.productoId,
+        cantidad: item.cantidad,
+        precioUnitario: item.precioUnitario
+      }))
+    };
+
+    console.log('Enviando pedido:', payload);
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'X-User-ID': pedidoData.usuarioId.toString()
     };
 
     const data = await handleResponse(await fetch(`${API_BASE_URL}/pedidos`, {
       method: 'POST',
-      headers: getHeaders(true), // Requiere estar logueado
+      headers: headers,
       body: JSON.stringify(payload)
     }));
-    return { success: true, pedido: data };
+    return { success: true, pedido: data, id: data.id };
   } catch (error: any) {
     return { success: false, message: error.message };
   }

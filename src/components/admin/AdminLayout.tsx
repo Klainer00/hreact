@@ -8,12 +8,9 @@ const AdminLayout = () => {
 
   // Validar si el usuario es admin o vendedor
   const esAdmin = usuario && (
-    usuario.rol === RolUsuario.Admin || 
+    usuario.rol === RolUsuario.ADMIN || 
     usuario.rol === 'ADMIN' || 
-    usuario.rol === 'Administrador' ||
-    usuario.rol === RolUsuario.Vendedor || 
-    usuario.rol === 'VENDEDOR' || 
-    usuario.rol === 'Vendedor'
+    usuario.rol === 'Administrador' 
   );
 
   if (!esAdmin) {

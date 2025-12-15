@@ -50,7 +50,27 @@ const AdminPedidos = () => {
       }
     };
     
+    // Cargar pedidos inmediatamente
     cargarPedidos();
+    
+    // Actualizar pedidos cada 5 segundos
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-actualización de pedidos...');
+      cargarPedidos();
+    }, 5000);
+    
+    // Actualizar cuando la página recupera el foco
+    const handleFocus = () => {
+      console.log('👁️ Página recuperó foco, actualizando pedidos...');
+      cargarPedidos();
+    };
+    window.addEventListener('focus', handleFocus);
+    
+    // Limpiar intervalos y listeners
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   if (loading) {

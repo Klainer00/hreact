@@ -12,11 +12,18 @@ const Home = () => {
     const cargarDestacados = async () => {
       setLoading(true);
       const todosLosProductos = await fetchProductos();
+      console.log('🏠 Productos cargados en Home:', todosLosProductos);
       // Simula "destacados" tomando solo los primeros 4
-      setProductos(todosLosProductos.slice(0, 4)); 
+      setProductos(todosLosProductos.slice(0, 4));
+      // Guardar en localStorage para sincronización
+      localStorage.setItem('productos', JSON.stringify(todosLosProductos));
       setLoading(false);
     };
     cargarDestacados();
+    
+    // Actualizar cada 5 segundos
+    const interval = setInterval(cargarDestacados, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

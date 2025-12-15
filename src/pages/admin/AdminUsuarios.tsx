@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import type { Usuario } from '../../interfaces/usuario';
-import { RolUsuario } from '../../interfaces/rolUsuario'; 
 import { fetchUsuarios, registrarUsuario, actualizarUsuario, eliminarUsuario, verificarUsuarioTienePedidos } from '../../utils/api';
 import ModalUsuario from '../../components/modals/ModalUsuario'; 
 import Swal from 'sweetalert2'; 
@@ -79,54 +78,62 @@ const AdminUsuarios = () => {
       return;
     }
 
-    // Verificar si es admin - VALIDACIÓN CRÍTICA
-    const esAdmin = usuario.rol === RolUsuario.Admin || 
-                    usuario.rol === 'ADMIN' || 
-                    usuario.rol === 'Administrador' ||
-                    usuario.rol === RolUsuario.Vendedor ||
-                    usuario.rol === 'VENDEDOR';
+    // VALIDACIÓN 1: Verificar si es administrador o vendedor
+    const rolName = getRolName(usuario.rol).toUpperCase();
+    console.log(`🔐 Verificando rol del usuario: ${usuario.nombre} ${usuario.apellido} - Rol: ${rolName}`);
+    
+    const esAdmin = rolName === 'ADMIN' || 
+                    rolName === 'ADMINISTRADOR' ||
+                    rolName === 'VENDEDOR';
 
     if (esAdmin) {
+      console.log(`🛡️ Usuario con rol protegido: ${rolName}`);
       await Swal.fire({
-        title: 'Acción Denegada ❌',
-        text: `No puedes eliminar a un usuario con rol ${usuario.rol}. Solo se pueden eliminar usuarios normales.`,
+        title: 'No se puede eliminar 🛡️',
+        html: `<p>Los usuarios con rol <strong>${rolName}</strong> no pueden ser eliminados.</p><p class="text-muted">Solo se pueden eliminar usuarios con rol de cliente.</p>`,
         icon: 'error',
         confirmButtonColor: '#dc3545',
         confirmButtonText: 'Entendido'
       });
       return;
     }
-
-    // Verificar si es el último admin (protección adicional)
-    const admins = usuarios.filter(u => 
-      u.rol === RolUsuario.Admin || 
-      u.rol === 'ADMIN' || 
-      u.rol === 'Administrador'
-    );
     
-    if (admins.length <= 1 && (usuario.rol === RolUsuario.Admin || usuario.rol === 'ADMIN' || usuario.rol === 'Administrador')) {
+    console.log(`✅ Usuario con rol CLIENTE puede ser evaluado para eliminación`);
+    
+
+    // VALIDACIÓN 2: Verificar si el usuario tiene pedidos asociados
+    console.log(`🔍 Verificando pedidos para usuario: ${usuario.nombre} ${usuario.apellido} (ID: ${usuario.id})`);
+    
+    const resultadoPedidos = await verificarUsuarioTienePedidos(usuario.id);
+    
+    console.log('📊 Resultado verificación:', resultadoPedidos);
+    
+    // Si hubo error al verificar pedidos, NO permitir eliminar por seguridad
+    if (!resultadoPedidos.success) {
       await Swal.fire({
-        title: 'Acción Denegada ❌',
-        text: 'No puedes eliminar el último administrador del sistema.',
+        title: 'Error al verificar pedidos ⚠️',
+        html: `<p>No se pudo verificar si <strong>${usuario.nombre} ${usuario.apellido}</strong> tiene pedidos asociados.</p><p class="text-muted mt-2">Por seguridad, no se puede proceder con la eliminación. Verifica la conexión con el backend.</p>`,
         icon: 'error',
         confirmButtonColor: '#dc3545',
         confirmButtonText: 'Entendido'
       });
       return;
     }
-
-    // Verificar si el usuario tiene pedidos asociados
-    const resultadoPedidos = await verificarUsuarioTienePedidos(usuario.id);
+    
+    // Si tiene pedidos, bloquear eliminación
     if (resultadoPedidos.tienePedidos) {
       await Swal.fire({
-        title: 'Acción Denegada ❌',
-        text: `No puedes eliminar este usuario porque tiene ${resultadoPedidos.cantidad} pedido(s) asociado(s).\n\nProcesa o cancela los pedidos antes de continuar.`,
+        title: 'No se puede eliminar 📦',
+        html: `<p><strong>${usuario.nombre} ${usuario.apellido}</strong> tiene <strong>${resultadoPedidos.cantidad}</strong> pedido(s) asociado(s).</p><p class="text-muted mt-2">No es posible eliminar usuarios con pedidos en el sistema para mantener la integridad de los datos históricos.</p>`,
         icon: 'warning',
-        confirmButtonColor: '#dc3545',
+        confirmButtonColor: '#ffc107',
         confirmButtonText: 'Entendido'
       });
       return;
     }
+    
+    // Usuario no tiene pedidos, puede ser eliminado
+    console.log(`✅ Usuario ${usuario.id} no tiene pedidos. Puede ser eliminado.`);
 
     // Confirmación final antes de eliminar
     const result = await Swal.fire({
@@ -205,19 +212,27 @@ const AdminUsuarios = () => {
           apellido: usuario.apellido || '', // ← CRÍTICO: Este campo NO puede ser null
           email: usuario.email || '',
           rut: usuario.rut || '',
-          fecha_nacimiento: usuario.fecha_nacimiento || '',
           direccion: usuario.direccion || '',
           region: usuario.region || '',
           comuna: usuario.comuna || '',
           rol: usuario.rol || 'USUARIO',
-          estado: usuario.estado || 'activo',
           // Solo incluir password si no está vacío
           ...(usuario.password && usuario.password.trim() !== '' && { password: usuario.password })
         };
         
         console.log('📤 Datos a actualizar:', usuarioActualizar);
         response = await actualizarUsuario(usuario.id, usuarioActualizar);
-        usuarioGuardado = response.usuario;
+        
+        console.log('📥 Respuesta del backend:', response);
+        
+        if (response.success && response.usuario) {
+          usuarioGuardado = response.usuario;
+        } else if (response.success) {
+          // Si el backend no devuelve el usuario pero la operación fue exitosa, usar los datos locales
+          usuarioGuardado = { ...usuarioActualizar, id: usuario.id } as Usuario;
+        } else {
+          throw new Error(response.message || 'Error al actualizar usuario');
+        }
       } else {
         // Crear nuevo usuario
         const nuevoUsuario: Omit<Usuario, 'id'> = {
@@ -225,30 +240,24 @@ const AdminUsuarios = () => {
           apellido: usuario.apellido || '',
           email: usuario.email || '',
           rut: usuario.rut || '',
-          fecha_nacimiento: usuario.fecha_nacimiento || '',
           direccion: usuario.direccion || '',
           region: usuario.region || '',
           comuna: usuario.comuna || '',
           rol: usuario.rol || 'USUARIO',
-          estado: usuario.estado || 'activo',
           password: usuario.password || '',
         };
         
         console.log('📤 Datos a crear:', nuevoUsuario);
         response = await registrarUsuario(nuevoUsuario);
-        usuarioGuardado = response.usuario;
-      }
-      
-      // Si la API falla, usar un fallback local
-      if (!response.success && !usuarioGuardado) {
-        console.warn('⚠️ API falló, usando fallback local');
         
-        if (isEditing) {
-          usuarioGuardado = usuario;
-        } else {
-          // Generar ID local
+        if (response.success && response.usuario) {
+          usuarioGuardado = response.usuario;
+        } else if (response.success) {
+          // Generar ID local si el backend no lo devuelve
           const maxId = usuarios.reduce((max, u) => u.id > max ? u.id : max, 0);
-          usuarioGuardado = { ...usuario, id: maxId + 1 };
+          usuarioGuardado = { ...nuevoUsuario, id: maxId + 1 } as Usuario;
+        } else {
+          throw new Error(response.message || 'Error al crear usuario');
         }
       }
       
@@ -319,7 +328,6 @@ const AdminUsuarios = () => {
               <th>Nombre</th>
               <th>Email</th>
               <th>Rol</th>
-              <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -331,7 +339,6 @@ const AdminUsuarios = () => {
                 <td>{user.nombre} {user.apellido}</td>
                 <td>{user.email}</td>
                 <td>{getRolName(user.rol)}</td>
-                <td>{user.estado}</td>
                 <td>
                   <button 
                     className="btn btn-primary btn-sm btn-editar" 
@@ -341,7 +348,7 @@ const AdminUsuarios = () => {
                   </button>
                   <button 
                     className="btn btn-danger btn-sm btn-eliminar ms-1" 
-                    onClick={() => handleEliminar(user)} // Pasar el 'user' completo
+                    onClick={() => handleEliminar(user)} 
                   >
                     Eliminar
                   </button>

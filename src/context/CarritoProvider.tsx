@@ -28,15 +28,72 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
   const [carrito, setCarrito] = useState<ItemCarrito[]>(() => loadCarrito());
   const [productosDisponibles, setProductosDisponibles] = useState<Producto[]>([]);
 
-  // Cargar productos disponibles desde localStorage para validar stock
+  // Cargar productos disponibles desde localStorage y API para validar stock
   useEffect(() => {
-    const productos = JSON.parse(localStorage.getItem('productos') || '[]');
-    setProductosDisponibles(productos);
+    const cargarProductos = () => {
+      // Primero intentar desde localStorage
+      const productosLocal = JSON.parse(localStorage.getItem('productos') || '[]');
+      if (productosLocal.length > 0) {
+        console.log('📦 Productos cargados en CarritoProvider:', productosLocal.length);
+        setProductosDisponibles(productosLocal);
+      }
+    };
+    
+    cargarProductos();
+    
+    // Actualizar productos cuando cambie el localStorage
+    window.addEventListener('storage', cargarProductos);
+    
+    // Crear un intervalo para actualizar productos periódicamente
+    const interval = setInterval(cargarProductos, 2000);
+    
+    return () => {
+      window.removeEventListener('storage', cargarProductos);
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
     saveCarrito(carrito);
   }, [carrito]);
+
+  // Actualizar el stock de los items del carrito cuando cambien los productos disponibles
+  useEffect(() => {
+    if (productosDisponibles.length > 0 && carrito.length > 0) {
+      console.log('🔄 Validando items del carrito contra productos disponibles');
+      setCarrito(prev => {
+        const carritoActualizado = prev
+          .map(item => {
+            const productoActualizado = productosDisponibles.find(p => String(p.id) === item.id);
+            if (productoActualizado) {
+              // Actualizar el stock del item
+              const nuevoStock = productoActualizado.stock;
+              // Si la cantidad actual excede el nuevo stock, ajustarla
+              if (item.cantidad > nuevoStock) {
+                console.log(`⚠️ Ajustando cantidad de ${item.nombre}: ${item.cantidad} → ${nuevoStock}`);
+                return { ...item, stock: nuevoStock, cantidad: Math.max(0, nuevoStock) };
+              }
+              return { ...item, stock: nuevoStock };
+            } else {
+              // Producto ya no existe
+              console.log(`❌ Eliminando del carrito: ${item.nombre} (producto no existe)`);
+              return null;
+            }
+          })
+          .filter((item): item is ItemCarrito => item !== null && item.cantidad > 0); // Eliminar items null o sin stock
+        
+        if (carritoActualizado.length !== prev.length) {
+          console.log(`🗑️ Carrito limpiado: ${prev.length} → ${carritoActualizado.length} items`);
+        }
+        
+        return carritoActualizado;
+      });
+    } else if (productosDisponibles.length > 0 && carrito.length > 0) {
+      // Si hay productos disponibles pero ninguno coincide, limpiar el carrito
+      console.log('🧹 Limpiando carrito: no hay productos válidos');
+      setCarrito([]);
+    }
+  }, [productosDisponibles]);
 
   // --- Lógica de cálculo (useMemo para eficiencia) ---
   const total = useMemo(() => {
@@ -53,11 +110,34 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
   
   // CORRECCIÓN: Lógica, Tipos y Manejo de Imagen
   const agregarAlCarrito = (producto: Producto) => {
+    // Validar stock antes de agregar
+    if (producto.stock <= 0) {
+      Swal.fire({
+        title: 'Sin stock',
+        text: `El producto "${producto.nombre}" no tiene stock disponible`,
+        icon: 'error',
+        confirmButtonText: 'Entendido'
+      });
+      return false;
+    }
+
+    let agregado = true;
     setCarrito(prev => {
       const productoIdString = String(producto.id);
       const existente = prev.find(item => item.id === productoIdString);
       
       if (existente) {
+        // Validar que no exceda el stock al incrementar
+        if (existente.cantidad >= producto.stock) {
+          Swal.fire({
+            title: 'Stock máximo alcanzado',
+            text: `Solo hay ${producto.stock} unidades disponibles de "${producto.nombre}"`,
+            icon: 'warning',
+            confirmButtonText: 'Entendido'
+          });
+          agregado = false;
+          return prev;
+        }
         return prev.map(item =>
           item.id === productoIdString ? { ...item, cantidad: item.cantidad + 1 } : item
         );
@@ -78,16 +158,39 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
       }
     });
     
-    return true; // Indica que la operación fue exitosa
+    return agregado; // Indica que la operación fue exitosa
   };  
 
   // CORRECCIÓN: Manejo de ID y Nulidad de Imagen
   const agregarItem = (producto: Producto) => {
+    // Validar stock antes de agregar
+    if (producto.stock <= 0) {
+      Swal.fire({
+        title: 'Sin stock',
+        text: `El producto "${producto.nombre}" no tiene stock disponible`,
+        icon: 'error',
+        confirmButtonText: 'Entendido'
+      });
+      return false;
+    }
+
+    let agregado = true;
     setCarrito(prev => {
       const productoIdString = String(producto.id);
       const existente = prev.find(item => item.id === productoIdString);
       
       if (existente) {
+        // Validar que no exceda el stock al incrementar
+        if (existente.cantidad >= producto.stock) {
+          Swal.fire({
+            title: 'Stock máximo alcanzado',
+            text: `Solo hay ${producto.stock} unidades disponibles de "${producto.nombre}"`,
+            icon: 'warning',
+            confirmButtonText: 'Entendido'
+          });
+          agregado = false;
+          return prev;
+        }
         return prev.map(item =>
           item.id === productoIdString ? { ...item, cantidad: item.cantidad + 1 } : item
         );
@@ -108,14 +211,28 @@ export const CarritoProvider = ({ children }: { children: ReactNode }) => {
       }
     });
     
-    return true; // Indica que la operación fue exitosa
+    return agregado; // Indica que la operación fue exitosa
   };
 
   const incrementarCantidad = (id: string) => {
     setCarrito(prev =>
-      prev.map(item =>
-        item.id === id ? { ...item, cantidad: item.cantidad + 1 } : item
-      )
+      prev.map(item => {
+        if (item.id === id) {
+          // Validar contra stock disponible
+          const producto = productosDisponibles.find(p => String(p.id) === id);
+          if (producto && item.cantidad >= producto.stock) {
+            Swal.fire({
+              title: 'Stock máximo alcanzado',
+              text: `Solo hay ${producto.stock} unidades disponibles de "${producto.nombre}"`,
+              icon: 'warning',
+              confirmButtonText: 'Entendido'
+            });
+            return item;
+          }
+          return { ...item, cantidad: item.cantidad + 1 };
+        }
+        return item;
+      })
     );
   };
 

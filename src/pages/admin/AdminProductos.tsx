@@ -59,60 +59,77 @@ const AdminProductos = () => {
   };
 
   const handleEliminar = async (id: number) => {
-    // Verificar si el producto está en algún pedido
-    const pedidos = loadPedidos();
-    const productoEnPedido = pedidos.some(pedido => 
-      pedido.detalles.some((detalle: any) => detalle.productoId === id)
-    );
+    try {
+      // Verificar si el producto está en algún pedido
+      const pedidos = loadPedidos();
+      const productoEnPedido = pedidos.some(pedido => 
+        pedido.detalles && pedido.detalles.some((detalle: any) => Number(detalle.productoId) === id)
+      );
 
-    if (productoEnPedido) {
-      Swal.fire({
-        title: "No se puede eliminar",
-        text: "Este producto no puede ser eliminado porque está asociado a uno o más pedidos.",
-        icon: "warning",
-        confirmButtonText: "Entendido"
-      });
-      return;
-    }
-
-    const result = await Swal.fire({
-      title: "¿Está seguro?",
-      text: "¿Desea eliminar este producto? Esta acción no se puede deshacer.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Sí, eliminar",
-      cancelButtonText: "Cancelar"
-    });
-
-    if (result.isConfirmed) {
-      // Llamar a la API
-      const response = await eliminarProducto(id);
-      
-      if (response.success) {
-        const nuevosProductos = productos.filter(p => p.id !== id);
-        setProductos(nuevosProductos);
-        localStorage.setItem('productos', JSON.stringify(nuevosProductos));
-        
-        Swal.fire({
-          title: "Eliminado",
-          text: "El producto ha sido eliminado exitosamente.",
-          icon: "success",
-          timer: 2000,
-          showConfirmButton: false
+      if (productoEnPedido) {
+        await Swal.fire({
+          title: 'No se puede eliminar',
+          text: 'Este producto no puede ser eliminado porque está asociado a uno o más pedidos.',
+          icon: 'error',
+          confirmButtonText: 'Entendido',
+          confirmButtonColor: '#d33'
         });
-      } else {
-        Swal.fire({
-          title: "Error",
-          text: response.message || "No se pudo eliminar el producto.",
-          icon: "error"
-        });
+        return;
       }
+
+      const result = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: "Esta acción no se puede deshacer",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (result.isConfirmed) {
+        await eliminarProducto(id);
+        
+        // Recargar productos desde el backend
+        const productosActualizados = await fetchProductos();
+        setProductos(productosActualizados);
+        localStorage.setItem('productos', JSON.stringify(productosActualizados));
+        
+        Swal.fire('¡Eliminado!', 'El producto ha sido eliminado.', 'success');
+      }
+    } catch (error) {
+      console.error('Error al eliminar producto:', error);
+      Swal.fire('Error', 'No se pudo eliminar el producto', 'error');
     }
   };
 
   const handleSave = async (producto: Producto) => {
+    try {
+      if (producto.id) {
+        // Actualizar producto existente
+        await actualizarProducto(producto.id, producto);
+        Swal.fire('¡Actualizado!', 'El producto ha sido actualizado.', 'success');
+      } else {
+        // Crear nuevo producto
+        await agregarProducto(producto);
+        Swal.fire('¡Creado!', 'El producto ha sido creado.', 'success');
+      }
+      
+      // Recargar productos desde el backend
+      const productosActualizados = await fetchProductos();
+      setProductos(productosActualizados);
+      localStorage.setItem('productos', JSON.stringify(productosActualizados));
+      
+      setShowModal(false);
+      setProductoToEdit(null);
+    } catch (error) {
+      console.error('Error al guardar producto:', error);
+      Swal.fire('Error', 'No se pudo guardar el producto', 'error');
+    }
+  };
+  
+  const handleSaveOBSOLETO = async (producto: Producto) => {
     try {
       let response;
       

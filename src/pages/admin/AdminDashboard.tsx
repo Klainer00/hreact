@@ -13,32 +13,56 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const loadStats = async () => {
-      // --- 💡 INICIO DE LA CORRECCIÓN 💡 ---
+      try {
+        // 1. Cargar Usuarios desde la API y actualizar localStorage
+        const usuariosActualizados = await fetchUsuarios();
+        localStorage.setItem('usuarios', JSON.stringify(usuariosActualizados));
+        setUserCount(usuariosActualizados.length);
 
-      // 1. Cargar Usuarios desde localStorage (igual que AdminUsuarios.tsx)
-      let usuariosGuardados: Usuario[] = JSON.parse(localStorage.getItem('usuarios') || 'null');
-      if (!usuariosGuardados) {
-        usuariosGuardados = await fetchUsuarios(); // Carga inicial desde JSON si no existe
-        localStorage.setItem('usuarios', JSON.stringify(usuariosGuardados));
+        // 2. Cargar Productos desde la API y actualizar localStorage
+        const productosActualizados = await fetchProductos();
+        localStorage.setItem('productos', JSON.stringify(productosActualizados));
+        setProductCount(productosActualizados.length);
+
+        // 3. Cargar Pedidos desde localStorage
+        const pedidos = loadPedidos();
+        setPedidoCount(pedidos.length);
+        
+        console.log('📊 Dashboard actualizado:', {
+          usuarios: usuariosActualizados.length,
+          productos: productosActualizados.length,
+          pedidos: pedidos.length
+        });
+      } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+        // Fallback a localStorage si falla la API
+        const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+        const productos = JSON.parse(localStorage.getItem('productos') || '[]');
+        const pedidos = loadPedidos();
+        setUserCount(usuarios.length);
+        setProductCount(productos.length);
+        setPedidoCount(pedidos.length);
       }
-      setUserCount(usuariosGuardados.length);
-
-      // 2. Cargar Productos desde localStorage (igual que AdminProductos.tsx)
-      let productosGuardados: Producto[] = JSON.parse(localStorage.getItem('productos') || 'null');
-      if (!productosGuardados) {
-        productosGuardados = await fetchProductos(); // Carga inicial desde JSON si no existe
-        localStorage.setItem('productos', JSON.stringify(productosGuardados));
-      }
-      setProductCount(productosGuardados.length);
-
-      // 3. Cargar Pedidos (esto ya estaba bien)
-      const pedidos = loadPedidos();
-      setPedidoCount(pedidos.length);
-      
-      // --- 💡 FIN DE LA CORRECCIÓN 💡 ---
     };
     
+    // Cargar estadísticas al montar
     loadStats();
+    
+    // Actualizar cada 5 segundos
+    const interval = setInterval(loadStats, 5000);
+    
+    // Actualizar cuando la página recupera el foco
+    const handleFocus = () => {
+      console.log('🔄 Dashboard: Página recuperó el foco, actualizando...');
+      loadStats();
+    };
+    window.addEventListener('focus', handleFocus);
+    
+    // Limpiar intervalos y listeners al desmontar
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []); // Se ejecuta solo una vez al montar
 
   return (

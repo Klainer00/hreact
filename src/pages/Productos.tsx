@@ -18,7 +18,10 @@ const Productos = () => {
       setLoading(true);
       try {
         const data = await fetchProductos(); // Llamada a la API real
+        console.log('📦 Productos cargados desde API:', data);
         setTodosLosProductos(data);
+        // Guardar en localStorage para sincronización con el carrito
+        localStorage.setItem('productos', JSON.stringify(data));
       } catch (err) {
         console.error("Error al cargar productos:", err);
         setError('Hubo un problema al cargar el catálogo. Intenta refrescar la página.');
@@ -27,6 +30,10 @@ const Productos = () => {
       }
     };
     cargarProductos();
+    
+    // Actualizar productos cada 5 segundos para mantener stock sincronizado
+    const interval = setInterval(cargarProductos, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   // Obtener categorías únicas dinámicamente

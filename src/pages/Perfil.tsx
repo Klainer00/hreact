@@ -18,35 +18,63 @@ const Perfil = () => {
     return <Navigate to="/index.html" replace />;
   }
 
-  // Cargar pedidos del usuario desde la API
+  // Cargar pedidos del usuario desde la API (SIEMPRE para actualizar el contador)
   useEffect(() => {
     const cargarPedidos = async () => {
-      if (activeTab === 'pedidos' && usuario?.id) {
-        setLoadingPedidos(true);
+      if (usuario?.id) {
+        // Solo mostrar loading si estamos en la pestaña de pedidos
+        if (activeTab === 'pedidos') {
+          setLoadingPedidos(true);
+        }
+        
         try {
+          console.log('📦 Cargando pedidos del usuario:', usuario.id);
           const pedidos = await fetchPedidos();
           // Filtrar pedidos por usuario actual
           const misPedidos = pedidos.filter((p: Pedido) => p.usuarioId === usuario.id);
+          console.log(`✅ Pedidos encontrados: ${misPedidos.length}`);
           setPedidosUsuario(misPedidos);
         } catch (error) {
           console.error('Error cargando pedidos:', error);
-          Swal.fire({
-            title: 'Error',
-            text: 'No se pudieron cargar tus pedidos. Intenta más tarde.',
-            icon: 'error',
-            toast: true,
-            position: 'bottom-end',
-            showConfirmButton: false,
-            timer: 3000
-          });
+          if (activeTab === 'pedidos') {
+            Swal.fire({
+              title: 'Error',
+              text: 'No se pudieron cargar tus pedidos. Intenta más tarde.',
+              icon: 'error',
+              toast: true,
+              position: 'bottom-end',
+              showConfirmButton: false,
+              timer: 3000
+            });
+          }
         } finally {
           setLoadingPedidos(false);
         }
       }
     };
     
+    // Cargar pedidos inmediatamente al montar el componente
     cargarPedidos();
-  }, [activeTab, usuario?.id]);
+    
+    // Actualizar pedidos cada 5 segundos (SIEMPRE, para actualizar el contador)
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-actualización de pedidos...');
+      cargarPedidos();
+    }, 5000);
+    
+    // Actualizar cuando la página recupera el foco
+    const handleFocus = () => {
+      console.log('👁️ Página recuperó foco, actualizando pedidos...');
+      cargarPedidos();
+    };
+    window.addEventListener('focus', handleFocus);
+    
+    // Limpiar intervalos y listeners
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [usuario?.id]); // Removí activeTab de las dependencias para que siempre se actualice
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
