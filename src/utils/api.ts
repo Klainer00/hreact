@@ -202,25 +202,42 @@ export const eliminarUsuario = async (id: number) => {
 
 export const actualizarUsuario = async (id: number, usuario: Partial<Usuario>) => {
   try {
+    console.log(`🔄 API: Actualizando usuario ID ${id}`);
+    console.log('📤 Datos enviados:', usuario);
+    console.log('🌐 URL:', `${API_BASE_URL}/usuarios/${id}`);
+    console.log('🔑 Headers:', getHeaders(true));
+    
     const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
       method: 'PUT',
       headers: getHeaders(true),
       body: JSON.stringify(usuario)
     });
     
+    console.log('📡 Status de respuesta:', response.status, response.statusText);
+    
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
-      throw new Error(errorData.message || `Error ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ Error response body:', errorText);
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText || 'Error desconocido' };
+      }
+      throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
     }
     
     const data = await response.json();
+    console.log('✅ Usuario actualizado recibido:', data);
+    
     return { 
       success: true, 
       message: 'Usuario actualizado',
       usuario: data // Devolver el usuario actualizado desde el backend
     };
   } catch (error: any) {
-    console.error('Error actualizando usuario:', error);
+    console.error('❌ Error en actualizarUsuario:', error);
+    console.error('❌ Error stack:', error.stack);
     return { success: false, message: error.message, usuario: undefined };
   }
 };
@@ -380,16 +397,26 @@ export const eliminarProducto = async (id: number) => {
 
 // ==================== PEDIDOS (Pedidos Service) ====================
 
-export const fetchPedidos = async (isAdmin: boolean = false) => {
+export const fetchPedidos = async (isAdmin: boolean = false, usuarioId?: number) => {
   try {
+    const token = localStorage.getItem('authToken');
+    
     // Si es admin, usar el endpoint administrativo
     const endpoint = isAdmin 
       ? `${API_BASE_URL}/pedidos/admin?size=100` 
       : `${API_BASE_URL}/pedidos?size=100`;
     
-    const response = await fetch(endpoint, {
-      headers: getHeaders(true) // Requiere autenticación
-    });
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    
+    // Agregar X-User-ID si se proporciona (requerido por el backend)
+    if (usuarioId) {
+      headers['X-User-ID'] = usuarioId.toString();
+    }
+    
+    const response = await fetch(endpoint, { headers });
     
     if (!response.ok) {
       throw new Error(`Error ${response.status}`);

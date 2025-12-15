@@ -29,9 +29,9 @@ const Perfil = () => {
         
         try {
           console.log('📦 Cargando pedidos del usuario:', usuario.id);
-          const pedidos = await fetchPedidos();
+          const pedidos = await fetchPedidos(false, usuario.id);
           // Filtrar pedidos por usuario actual
-          const misPedidos = pedidos.filter((p: Pedido) => p.usuarioId === usuario.id);
+          const misPedidos = pedidos.filter((p: Pedido) => p.usuarioId === usuario.id || p.usuarioId === Number(usuario.id));
           console.log(`✅ Pedidos encontrados: ${misPedidos.length}`);
           setPedidosUsuario(misPedidos);
         } catch (error) {
@@ -84,46 +84,73 @@ const Perfil = () => {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
-      // Preparar datos para actualizar
-      const usuarioActualizado = { ...usuario, ...formData } as Usuario;
+      console.log('🔄 Iniciando actualización de perfil...');
+      console.log('📋 Usuario actual:', usuario);
+      console.log('📋 FormData actual:', formData);
+      
+      // Preparar datos para actualizar - INCLUIR email, rut y password que son obligatorios
+      const datosActualizar = {
+        rut: usuario.rut, // No se puede cambiar
+        email: usuario.email, // No se puede cambiar
+        nombre: formData.nombre || usuario.nombre,
+        apellido: formData.apellido || usuario.apellido,
+        telefono: formData.telefono || usuario.telefono || '',
+        direccion: formData.direccion || usuario.direccion || '',
+        region: formData.region || usuario.region || '',
+        comuna: formData.comuna || usuario.comuna || ''
+      };
+      
+      console.log('📝 Datos a enviar:', datosActualizar);
+      console.log('🎯 ID de usuario:', usuario.id);
       
       // Actualizar en el backend
-      actualizarUsuario(usuario.id, usuarioActualizado).then((res) => {
-        if (res.success) {
-          // Actualizar en localStorage
-          const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
-          const updatedUsuarios = usuarios.map((u: any) => 
-            u.id === usuario.id ? usuarioActualizado : u
-          );
-          localStorage.setItem('usuarios', JSON.stringify(updatedUsuarios));
-          
-          // Actualizar el contexto
-          updateUsuario(usuarioActualizado);
-          
-          setEditMode(false);
-          Swal.fire({
-            title: "Perfil actualizado",
-            text: "Tu perfil ha sido actualizado exitosamente.",
-            icon: "success",
-            timer: 2000,
-            showConfirmButton: false
-          });
-        } else {
-          throw new Error(res.message || 'Error al actualizar');
-        }
-      }).catch((error: any) => {
-        console.error('Error al actualizar perfil:', error);
-        Swal.fire({
-          title: "Error",
-          text: error.message || "No se pudo actualizar el perfil. Intenta nuevamente.",
-          icon: "error"
+      const res = await actualizarUsuario(usuario.id, datosActualizar);
+      
+      console.log('📡 Respuesta del servidor:', res);
+      
+      if (res.success && res.usuario) {
+        console.log('✅ Usuario actualizado en backend:', res.usuario);
+        
+        // Combinar el usuario devuelto con el token y rol actuales
+        const usuarioActualizado = {
+          ...res.usuario,
+          token: usuario.token,
+          rol: usuario.rol
+        };
+        
+        console.log('🔄 Usuario actualizado completo:', usuarioActualizado);
+        
+        // Actualizar en localStorage
+        const usuarios = JSON.parse(localStorage.getItem('usuarios') || '[]');
+        const updatedUsuarios = usuarios.map((u: any) => 
+          u.id === usuario.id ? usuarioActualizado : u
+        );
+        localStorage.setItem('usuarios', JSON.stringify(updatedUsuarios));
+        
+        // Actualizar el contexto con el usuario devuelto por el backend
+        updateUsuario(usuarioActualizado);
+        
+        // Actualizar formData con los nuevos valores
+        setFormData(usuarioActualizado);
+        
+        setEditMode(false);
+        await Swal.fire({
+          title: "Perfil actualizado",
+          text: "Tu perfil ha sido actualizado exitosamente.",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false
         });
-      });
+      } else {
+        console.error('❌ Error en respuesta:', res);
+        throw new Error(res.message || 'No se recibió usuario actualizado del servidor');
+      }
     } catch (error: any) {
-      console.error('Error:', error);
-      Swal.fire({
+      console.error('❌ Error completo:', error);
+      console.error('❌ Stack trace:', error.stack);
+      await Swal.fire({
         title: "Error",
         text: error.message || "No se pudo actualizar el perfil. Intenta nuevamente.",
         icon: "error"

@@ -19,7 +19,7 @@ const Blog = () => {
         {/* Blog 2 */}
         <div className="col-md-4">
           <div className="card h-100">
-            <img src="/img/blog-recetas-saludables.png" className="card-img-top" alt="Recetas saludables" />
+            <img src="/img/blog-recetas-saludables2.png" className="card-img-top" alt="Recetas saludables" />
             <div className="card-body">
               <h5 className="card-title">5 Recetas Fáciles y Saludables con Productos de Temporada</h5>
               <p className="card-text">Aprovecha al máximo la frescura de nuestros productos con estas ideas de recetas rápidas y nutritivas.</p>

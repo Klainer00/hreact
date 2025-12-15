@@ -5,10 +5,36 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
+      // Bypass gateway (8080) and hit services directly during dev
+      '/api/auth': {
+        target: 'http://localhost:8081',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\//, '/')
+      },
+      '/api/usuarios': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\//, '/')
+      },
+      '/api/productos': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\//, '/')
+      },
+      '/api/pedidos': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\//, '/')
+      },
+      '/api/contacto': {
+        target: 'http://localhost:8084',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\//, '/')
       }
     }
   },

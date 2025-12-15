@@ -150,16 +150,34 @@ const ModalProducto = ({ show, onClose, onSave, productoToEdit }: Props) => {
 
                 {/* Imagen */}
                 <div className="col-md-6 mb-3">
-                  <label htmlFor="imagenUrl" className="form-label">Ruta de la Imagen (ej: /img/producto.png)</label>
-                  <input 
-                    type="text" 
-                    className={`form-control ${errors.imagenUrl ? 'is-invalid' : ''}`} 
+                  <label htmlFor="imagenUrl" className="form-label">Imagen del Producto</label>
+                  <select 
+                    className={`form-select ${errors.imagenUrl ? 'is-invalid' : ''}`} 
                     id="imagenUrl" 
                     value={form.imagenUrl} 
-                    onChange={handleChange} 
-                    placeholder="/img/producto.png" 
-                    required 
-                  />
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">Seleccionar imagen...</option>
+                    <optgroup label="Frutas">
+                      <option value="/img/manzanaFuji.png">Manzana Fuji</option>
+                      <option value="/img/naranja_valencia.png">Naranja Valencia</option>
+                      <option value="/img/platano_caverdish.png">Plátano Cavendish</option>
+                    </optgroup>
+                    <optgroup label="Verduras">
+                      <option value="/img/lechuga.png">Lechuga</option>
+                      <option value="/img/zanahorias.png">Zanahorias</option>
+                      <option value="/img/pimienton.png">Pimentón</option>
+                    </optgroup>
+                    <optgroup label="Procesados">
+                      <option value="/img/quinua.png">Quinua</option>
+                      <option value="/img/miel.png">Miel</option>
+                    </optgroup>
+                    <optgroup label="Lácteos">
+                      <option value="/img/leche.png">Leche</option>
+                      <option value="/img/huevos.png">Huevos</option>
+                    </optgroup>
+                  </select>
                   {errors.imagenUrl && <div className="invalid-feedback">{errors.imagenUrl}</div>}
                 </div>
 
